@@ -41,12 +41,12 @@ def get_cli_args():
         "be achieved within --stop-timesteps AND --stop-iters.",
     )
     parser.add_argument(
-        "--stop-iters", type=int, default=20000, help="Number of iterations to train."
+        "--stop-iters", type=int, default=200, help="Number of iterations to train."
     )
     parser.add_argument(
         "--stop-timesteps",
         type=int,
-        default=500000,
+        default=100000,
         help="Number of timesteps to train.",
     )
     parser.add_argument(
@@ -76,41 +76,6 @@ if __name__ == "__main__":
     args = get_cli_args()
 
     ray.init(num_cpus=args.num_cpus or None, local_mode=args.local_mode)
-
-    # from bsk_rl.utils.rllib import EpisodeDataCallbacks
-    from ray.rllib.algorithms.callbacks import DefaultCallbacks
-
-    from bsk_rl.utils.rllib import EpisodeDataCallbacks
-
-    class CustomDataCallbacks(EpisodeDataCallbacks):
-
-        def __init__(self, *args, name=args.name, **kwargs):
-            super().__init__(*args, **kwargs)
-            self.step_count = 0
-            logdir = f"./logs/{name}"
-            self.writer = SummaryWriter(logdir)
-
-
-        def pull_env_metrics(self, env):
-            reward = env.rewarder.cum_reward
-            reward = sum(reward.values()) / len(reward)
-            orbits = env.simulator.sim_time / (95 * 60)
-
-            self.writer.add_scalar("reward", reward, self.step_count)
-            self.writer.add_scalar("reward_per_orbit", reward / orbits, self.step_count)
-            self.writer.add_scalar("orbits_complete", orbits, self.step_count)
-
-            data = dict(
-                reward=reward,
-                reward_per_orbit=reward / orbits,
-                orbits_complete=orbits,
-            )
-            return data
-
-        def on_episode_step(self, *, worker, base_env, episode, env_index, **kwargs):
-            self.step_count += 1
-
-
 
     from bsk_rl import sats, act, obs, scene, data, comm
     from bsk_rl.sim import dyn, fsw
@@ -218,28 +183,16 @@ if __name__ == "__main__":
         ImagingSatellite("EO-2", sat_args),
         ImagingSatellite("EO-3", sat_args),
         ],
-        scenario=scene.UniformTargets(3000),
+        scenario=scene.UniformTargets(1000),
         rewarder=data.UniqueImageReward(),
         communicator=comm.FreeCommunication(),
         log_level="INFO",
         time_limit=duration,
     )
 
-    training_args = dict(
-        lr=0.00003,
-        gamma=0.999,
-        train_batch_size=1000,
-        num_sgd_iter=10,
-        lambda_=0.95,
-        use_kl_loss=False,
-        clip_param=0.1,
-        grad_clip=0.5,
-    )
-
     # Generic config.
     config = (
         PPOConfig()
-        .training(**training_args)
         .env_runners(num_env_runners=7, sample_timeout_s=1000000.0)
         # Batch-norm models have not been migrated to the RL Module API yet.
         .api_stack(enable_rl_module_and_learner=False)
@@ -247,7 +200,6 @@ if __name__ == "__main__":
             env=unpack_config(GeneralSatelliteTasking),
             env_config=env_args,
         )
-        .callbacks(CustomDataCallbacks)
         .reporting(
             metrics_num_episodes_for_smoothing=1,
             metrics_episode_collection_timeout_s=180,
@@ -275,44 +227,184 @@ if __name__ == "__main__":
 
     config.algo_class = "PPO"
     algo = config.build()
-
-
-    print("Starting training loop.")
-
-    for i in range(args.stop_iters):
-        result = algo.train()
-        
-        print(pretty_print(result))
-
-        save_result = algo.save(checkpoint_dir="./logs/train_v2")
-        path_to_checkpoint = save_result.checkpoint.path
-        print(
-            "An Algorithm checkpoint has been created inside directory: "
-            f"'{path_to_checkpoint}'."
-        )
+    algo.restore("./logs/train_v2/")
 
     # run manual test loop: 1 iteration until done
     print("Finished training. Running manual test/inference loop.")
 
 
     env = unpack_config(GeneralSatelliteTasking)(env_args)
+
+    
+
+
     obs, info = env.reset()
     done = False
     truncated = False
     total_reward = 0
     steps = 0
 
-    import random
+    from pymap3d import ecef2geodetic
+
+    def ecef_to_latlon(x, y, z):
+        lat, lon, alt = ecef2geodetic(x, y, z)
+        return lat, lon
+
+    print("Satellites:")
+    for sat in env.satellites:
+        print(f"  Satellite: {sat}")
+        print(f"    Trajectory (TrajectorySimulator):")
+        print(f"      UTC Init: {sat.trajectory.utc_init}")
+        print(f"      Simulation Time: {sat.trajectory.sim_time:.2f} s")
+        print(f"      Initial Position (r_N_init): {sat.trajectory.rN_init}")
+        print(f"      Initial Velocity (v_N_init): {sat.trajectory.vN_init}")
+        print(f"      Timestep (dt): {sat.trajectory.dt} s")
+        
+        # Get current position in ECEF
+        current_time = sat.trajectory.sim_time
+        r_BP_P = sat.trajectory.r_BP_P(current_time)
+        
+        # Convert ECEF to lat/lon
+        lat, lon = ecef_to_latlon(r_BP_P[0], r_BP_P[1], r_BP_P[2])
+        print(f"      Current Position:")
+        print(f"        Latitude: {lat:.4f}°")
+        print(f"        Longitude: {lon:.4f}°")
+        
+        # Print interpolator information
+        r_BN_N = sat.trajectory.r_BN_N
+        r_BP_P = sat.trajectory.r_BP_P
+        print(f"      r_BN_N: Interpolator for satellite position in inertial frame")
+        print(f"        - x-range: [{r_BN_N.x.min():.2f}, {r_BN_N.x.max():.2f}] s")
+        print(f"        - y-shape: {r_BN_N.y.shape}")
+        print(f"      r_BP_P: Interpolator for satellite position in planet-fixed frame")
+        print(f"        - x-range: [{r_BP_P.x.min():.2f}, {r_BP_P.x.max():.2f}] s")
+        print(f"        - y-shape: {r_BP_P.y.shape}")
+
+        # Print eclipse information
+        eclipse_start, eclipse_end = sat.trajectory.next_eclipse(sat.trajectory.sim_time)
+        print(f"      Next Eclipse:")
+        print(f"        Start: {eclipse_start:.2f} s")
+        print(f"        End: {eclipse_end:.2f} s")
+
+    print(f"    Window Calculation Time: {sat.window_calculation_time}")
+    print(f"    Upcoming Opportunities: {len(sat.upcoming_opportunities)}")
+    if isinstance(sat, ImagingSatellite):
+        print(f"    Known Targets: {len(sat.known_targets)}")
+
+
+    for sat in env.satellites:
+        print(sat.action_description)
+        print(sat.observation_description)
+        # print(sat.known_targets)
+        next_target = sat.find_next_opportunities(n=10, types="target")
+        print(f"Next Target: {next_target}")
+        next_targets = sat.find_next_opportunities(n=10, filter=sat.get_access_filter(), types="target")
+
+
+    def map_targets(target):
+        print(target)
+        print(type(target)) 
+        from bsk_rl.scene.targets import Target
+        if isinstance(target, dict):
+            lat, lon = ecef_to_latlon(target['r_LP_P'][0], target['r_LP_P'][1], target['r_LP_P'][2])
+            return {'id': target['target'].id, 'latitude': lat, 'longitude': lon}
+        elif isinstance(target, Target):
+            lat, lon = ecef_to_latlon(target.r_LP_P[0], target.r_LP_P[1], target.r_LP_P[2])
+            return {'id': target.id, 'latitude': lat, 'longitude': lon}
+        else:
+            raise TypeError(f"Invalid target type: {type(target)}")
+        
+    map_targets(env.satellites[0].known_targets[0])
+    map_targets(sat.find_next_opportunities(n=10, filter=sat.get_access_filter(), types="target")[0])
+
+    # exit()
+
+    import json
+    from collections import defaultdict
+
+
+    data_per_step = []
+    all_possible_targets = env.satellites[0].known_targets
+    action_description = env.satellites[0].action_description
+    observation_description = env.satellites[0].observation_description
+    n_action = 0
 
     while not done and not truncated:
-        # action = algo.compute_single_action(obs)
+        action = algo.compute_single_action(obs)
         # Get random action
-        action = [random.randint(0, 9) for _ in range(3)]
+        # action = [random.randint(0, 9) for _ in range(3)]
         next_obs, reward, done, truncated, _ = env.step(action)
+
+        # Record satellite positions
+
+        targets_this_step = {}
+        satellite_data = {}
+
+        current_time = env.simulator.sim_time
+
+        for i, sat in enumerate(env.satellites):
+            # current_time = sat.trajectory.sim_time
+            r_BP_P = sat.trajectory.r_BP_P(current_time)
+            lat, lon = ecef_to_latlon(r_BP_P[0], r_BP_P[1], r_BP_P[2])
+
+            satellite_data[sat.id] = {}
+
+            satellite_data[sat.id]['time'] = current_time
+            satellite_data[sat.id]['latitude'] = lat
+            satellite_data[sat.id]['longitude'] = lon
+            satellite_data[sat.id]['targets'] = sat.find_next_opportunities(n=10, filter=sat.get_access_filter(), types="target")
+            satellite_data[sat.id]['actions'] = int(action[i])
+            satellite_data[sat.id]['reward'] = reward
+
+        data_per_step.append(satellite_data)
+
         print(f"Obs: {obs}, Action: {action}, Reward: {reward} Done: {done} Truncated: {truncated}")
         obs = next_obs
         total_reward += reward
+        n_action += 1
+
+        # if n_action > 10:
+        #     break
+
     print(f"Total reward in test episode: {total_reward}")
     algo.stop()
+
+    # Write data to JSON file
+    def map_targets(target):
+        from bsk_rl.scene.targets import Target
+        if isinstance(target, dict):
+            lat, lon = ecef_to_latlon(target['r_LP_P'][0], target['r_LP_P'][1], target['r_LP_P'][2])
+            return {'id': target['target'].id, 'latitude': lat, 'longitude': lon}
+        elif isinstance(target, Target):
+            lat, lon = ecef_to_latlon(target.r_LP_P[0], target.r_LP_P[1], target.r_LP_P[2])
+            return {'id': target.id, 'latitude': lat, 'longitude': lon}
+        else:
+            raise TypeError(f"Invalid target type: {type(target)}")
+        
+
+    json_data = {}
+    json_data['targets'] = [map_targets(target) for target in all_possible_targets]
+    
+
+
+    for step in data_per_step:
+        for sat in step:
+            step[sat]['targets'] = [map_targets(target) for target in step[sat]['targets']]
+
+    
+    print("Data per step: ", data_per_step)
+    print(data_per_step[0])
+
+
+
+    json_data['steps'] = data_per_step
+    json_data['action_description'] = action_description
+    json_data['observation_description'] = observation_description
+
+    print(json_data)
+
+    with open('data.json', 'w') as f:
+        json.dump(json_data, f, indent=2)
+    
 
     ray.shutdown()
