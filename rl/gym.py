@@ -8,6 +8,15 @@ from rl.sim import Simulator
 class SatelliteTasking(Env):
 
 
+    """
+    Rest
+    Loop:
+        Action
+        Step
+    
+    """
+
+
     def __init__(self, config):
 
         self.config = config
@@ -33,12 +42,10 @@ class SatelliteTasking(Env):
         if self.simulator is not None:
             del self.simulator
         
-
-       
         seed = None
         if seed is None:
             seed = time_ns() % 2**32
-        # print(f"Resetting environment with seed={seed}")
+
         super().reset(seed=seed)
         np.random.seed(seed)
 
@@ -52,19 +59,9 @@ class SatelliteTasking(Env):
 
     def step(self, actions):
 
-        # print(actions)
-        self.simulator.take_action(actions)
+        next_obs, reward = self.simulator.step(actions)
 
-        # print("Running simulation")
-        self.simulator.run()
-
-        reward = self.simulator.reward
-
-        observations = self.simulator.get_obs()
-
-        print("Simulation is done", self.simulator.done)    
-
-        return observations, reward, self.simulator.done, False, {}
+        return next_obs, reward, self.simulator.done, False, {}
 
 
     def render(self) -> None:  # pragma: no cover

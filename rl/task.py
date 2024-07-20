@@ -9,53 +9,70 @@ from bsk_rl.utils.orbital import elevation
 
 class Task:
 
-    def __init__(self, name, r_LP_P, priority, min_elev=np.radians(45.0)):
+    def __init__(self, name, r_LP_P, priority, simultaneous_collects_required=1, task_duration=30.0, min_elev=np.radians(45.0)):
         self.name = name
         self.r_LP_P = r_LP_P
         self.priority = priority
         self.min_elev = min_elev
+        self.task_duration = task_duration
+        self.simultaneous_collects_required = simultaneous_collects_required
 
         self.sat_windows = {}
-
         self.sats_collecting = []
+
+        self.successful_collected = False
 
     @property
     def id(self):
         return f"{self.name}_{id(self)}"
-    
-    def clear_collecting(self):
+
+    def step(self):
         self.sats_collecting = []
+        
+    def collect(self, satellite, collect_start_time, collect_end_time):
+        self.sats_collecting.append((satellite, collect_start_time, collect_end_time))
 
-    def collect(self, satellite, current_time):
-        self.sats_collecting.append((satellite, current_time))
-
-    def get_task_reward(self):
+    def count_valid_collections(self):
+        valid_collections = 0
+        for satellite, collect_start_time, collect_end_time in self.sats_collecting:
+            for window in self.sat_windows[satellite.id]:
+                # Calculate the overlaping time between the collection window and the task window
+                overlap_start = max(collect_start_time, window[0])
+                overlap_end = min(collect_end_time, window[1])
+                overlap_duration = overlap_end - overlap_start
+                if overlap_duration >= self.task_duration:
+                    # If the overlap duration is greater than the task duration, then the task is valid
+                    valid_collections += 1
+                    break
+        return valid_collections
+    
+    def step(self):
+        reward = 0
         if len(self.sats_collecting) > 0:
-            return self.priority
-        return 0
+            valid_collections = self.count_valid_collections()
+            if valid_collections >= self.simultaneous_collects_required:
+                self.successful_collected = True
+                reward = self.priority
+        self.sats_collecting = []
+        return reward
     
     def add_window(self, satellite, new_window):
         if satellite.id not in self.sat_windows:
             self.sat_windows[satellite.id] = []
             self.sat_windows[satellite.id].append(new_window)
             return
-
         windows = self.sat_windows[satellite.id]
-        
         # Find the position where the new window should be inserted
         pos = bisect_left(windows, new_window[0], key=lambda x: x[0])
-        
         # Check for overlap and merge
         to_remove = []
         for i in range(max(0, pos - 1), min(len(windows), pos + 1)):
             if self._windows_overlap(windows[i], new_window):
                 new_window = self._merge_windows(windows[i], new_window)
                 to_remove.append(i)
-        
         # Remove the overlapped windows
         for i in reversed(to_remove):
             windows.pop(i)
-        
         # Insert the merged window
         insort(windows, new_window, key=lambda x: x[0])
 
@@ -81,8 +98,7 @@ class Task:
             start_time, end_time = window
             start_time = start_time - current_time
             end_time = end_time - current_time
-            # print(f"Task {self.id} window: {start_time}, {end_time}")
-            return np.array([start_time / 1000.0, end_time / 1000.0, self.priority])
+            return np.array([start_time / 100000.0, end_time / 100000.0, self.priority])
         return None
 
 
@@ -93,12 +109,13 @@ class TaskManager:
         self.window_calculation_time = 0
         self.generation_duration = generation_duration
 
-    def clear_collecting(self):
+    def step(self):
+        reward = 0
         for task in self.tasks:
-            task.clear_collecting()
-
-    def get_task_reward(self):
-        return sum([task.get_task_reward() for task in self.tasks])
+            reward += task.step()
+        # Remove tasks that have been collected
+        self.tasks = [task for task in self.tasks if not task.successful_collected]
+        return reward
 
     def get_random_tasks(self, n_targets, radius=orbitalMotion.REQ_EARTH * 1e3):
         tasks = []

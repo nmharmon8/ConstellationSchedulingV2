@@ -11,7 +11,8 @@ args = parse_args()
 name = args.name
 config = load_config(args.config)
 
-ray.init(local_mode=config['local_mode'])
+import os
+ray.init(local_mode=config['local_mode'], _temp_dir=os.path.abspath(f"./logs/{name}"))
 
 
 
@@ -24,7 +25,7 @@ print(type(config['training_args']))
 
 
 # Generic config.
-config = (
+ppo_config = (
     PPOConfig()
     .training(**config['training_args'])
     .env_runners(**config['env_runners'])
@@ -36,25 +37,24 @@ config = (
     .callbacks(CustomDataCallbacks)
     .framework("torch")
     .checkpointing(export_native_model_files=True)
+
 )
 
-config.model.update(
+ppo_config.model.update(
     {
         "custom_model": "simple_model",
         # "custom_action_dist": "sat_dist",
     }
 )
 
-config.algo_class = "PPO"
-algo = config.build()
+algo = ppo_config.build()
 
 
-for i in range(100000):
+for i in range(config['training']['steps']):
     result = algo.train()
     
     print((result))
-
-    save_result = algo.save(checkpoint_dir="./logs/train_custom_v1")
+    save_result = algo.save(checkpoint_dir=f"./logs/{name}")
     path_to_checkpoint = save_result.checkpoint.path
     print(
         "An Algorithm checkpoint has been created inside directory: "
@@ -87,3 +87,6 @@ print(f"Total reward in test episode: {total_reward}")
 algo.stop()
 
 ray.shutdown()
+
+
+# python -m rl.train --config=rl/configs/basic_config.yaml
