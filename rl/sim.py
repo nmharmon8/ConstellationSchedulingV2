@@ -28,11 +28,13 @@ class Simulator():
 
         self.cum_reward = 0
 
+        self.task_being_collected = {}
+
 
     def step(self, actions):
         # Simulation time
         start_time = self.sim_time
-        end_time = self.sim_time + min(self.sim_time + self.max_step_duration, self.time_limit)
+        end_time = self.sim_time + self.max_step_duration
 
         # Now take actions
         for satellite, action in zip(self.satellites, actions):
@@ -40,6 +42,10 @@ class Simulator():
             if action < self.n_access_windows and action < len(self.current_tasks_by_sat[satellite.id]):
                 task = self.current_tasks_by_sat[satellite.id][action]
                 task.collect(satellite, start_time, end_time)
+                self.task_being_collected[satellite.id] = task
+            else:
+                self.task_being_collected[satellite.id] = None
+
 
         # Now get the reward based on the action taken from start to end time
         reward = self.task_manager.step()
@@ -49,37 +55,26 @@ class Simulator():
 
         # Get the next observations
         observations = self.get_obs()
-        return observations, reward
-    
+      
 
+        return observations, reward, self.task_being_collected
+    
 
 
     @property
     def done(self):
         return self.sim_time >= self.time_limit
 
-
-    
-    # def pre_step(self):
-    #     print("Calculating access windows for sim time", self.sim_time)
-    #     # Update task windows
-    #     # self.task_manager.pre_step(sim_time=self.sim_time)
-    #     # for satellite in self.satellites:
-    #     #     self.task_manager.calculate_access_windows(satellite, self.sim_time)
-        
-
-    # def post_step(self):
-    #     self.task_manager.post_step(sim_time=self.sim_time)
-
     def get_obs(self):
 
+        # Update task windows
         for satellite in self.satellites:
-            self.task_manager.calculate_access_windows(satellite, self.sim_time)
+            self.task_manager.calculate_access_windows(satellite,  calculation_start=self.sim_time, duration=self.max_step_duration)
 
         self.current_tasks_by_sat = {}
         for satellite in self.satellites:
             self.current_tasks_by_sat[satellite.id] = self.task_manager.get_upcoming_tasks(satellite, self.sim_time)[:self.n_access_windows]
-        
+
         observations = []
         for satellite in self.satellites:
             sat_observations = []
@@ -93,4 +88,5 @@ class Simulator():
             observations.append(sat_observations)
 
         observations = np.stack(observations, axis=0)
+        
         return observations

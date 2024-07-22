@@ -21,7 +21,7 @@ training_args:
 
 env:
   sim_rate: 1.0
-  max_step_duration: 600.0
+  max_step_duration: 180.0
   time_limit: 6000
   n_access_windows: 10
 

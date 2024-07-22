@@ -59,9 +59,9 @@ class SatelliteTasking(Env):
 
     def step(self, actions):
 
-        next_obs, reward = self.simulator.step(actions)
+        next_obs, reward, task_being_collected = self.simulator.step(actions)
 
-        return next_obs, reward, self.simulator.done, False, {}
+        return next_obs, reward, self.simulator.done, False, {'task_being_collected': task_being_collected} 
 
 
     def render(self) -> None:  # pragma: no cover

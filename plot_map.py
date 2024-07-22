@@ -35,7 +35,7 @@ satellite_names = list(data['steps'][0].keys())
 satellite_colors = {sat: c for sat, c in zip(satellite_names, ['blue', 'green', 'purple'])}
 
 # Prepare satellite data
-satellites = {sat: {'times': [], 'lats': [], 'lons': [], 'actions': [], 'targets': [], 'rewards': []} for sat in satellite_colors}
+satellites = {sat: {'times': [], 'lats': [], 'lons': [], 'actions': [], 'task_being_collected': [], 'rewards': []} for sat in satellite_colors}
 
 # Add a new dictionary for rewards
 satellite_rewards = {sat: 0 for sat in satellite_colors}
@@ -49,12 +49,12 @@ for step in sorted_steps:
             satellites[sat]['lats'].append(step[sat]['latitude'])
             satellites[sat]['lons'].append(step[sat]['longitude'])
             satellites[sat]['actions'].append(step[sat]['actions'])
-            satellites[sat]['targets'].append(step[sat]['targets'])
+            satellites[sat]['task_being_collected'].append(step[sat]['task_being_collected'])
             satellites[sat]['rewards'].append(step[sat]['reward'])
 
 # Interpolate satellite positions
 interpolated_satellites = {}
-num_interpolation_points = 1000
+num_interpolation_points = len(sorted_steps) * 10
 
 for sat, data in satellites.items():
     if len(data['times']) > 1:
@@ -82,7 +82,7 @@ for sat, data in satellites.items():
                 'lats': interp_lats,
                 'lons': interp_lons,
                 'actions': data['actions'],
-                'targets': data['targets'],
+                'task_being_collected': data['task_being_collected'],
                 'rewards': data['rewards']
             }
 
@@ -130,16 +130,20 @@ def update(frame):
             reward_string = f"Score {satellite_rewards[sat]:.2f}"
             
             if 0 <= action <= 9:
-                target = sat_data['targets'][step_index][action]
+                # target = sat_data['targets'][step_index][action]
+                task = sat_data['task_being_collected'][step_index]
+
+                if task is None:
+                    continue
                 
                 # Create imaging box
                 box_size = 10  # degrees
                 verts = [
-                    (target['longitude'] - box_size/2, target['latitude'] - box_size/2),
-                    (target['longitude'] + box_size/2, target['latitude'] - box_size/2),
-                    (target['longitude'] + box_size/2, target['latitude'] + box_size/2),
-                    (target['longitude'] - box_size/2, target['latitude'] + box_size/2),
-                    (target['longitude'] - box_size/2, target['latitude'] - box_size/2),
+                    (task['longitude'] - box_size/2, task['latitude'] - box_size/2),
+                    (task['longitude'] + box_size/2, task['latitude'] - box_size/2),
+                    (task['longitude'] + box_size/2, task['latitude'] + box_size/2),
+                    (task['longitude'] - box_size/2, task['latitude'] + box_size/2),
+                    (task['longitude'] - box_size/2, task['latitude'] - box_size/2),
                 ]
                 codes = [Path.MOVETO] + [Path.LINETO]*3 + [Path.CLOSEPOLY]
                 path = Path(verts, codes)
@@ -147,13 +151,13 @@ def update(frame):
                 
                 # Draw or update line from satellite to target
                 if active_imaging_lines[sat] is None:
-                    line = ax.plot([sat_data['lons'][frame], target['longitude']], 
-                                   [sat_data['lats'][frame], target['latitude']], 
+                    line = ax.plot([sat_data['lons'][frame], task['longitude']], 
+                                   [sat_data['lats'][frame], task['latitude']], 
                                    color='black', alpha=0.7, linewidth=4, linestyle=':', transform=ccrs.Geodetic())[0]
                     active_imaging_lines[sat] = line
                 else:
-                    active_imaging_lines[sat].set_data([sat_data['lons'][frame], target['longitude']], 
-                                                       [sat_data['lats'][frame], target['latitude']])
+                    active_imaging_lines[sat].set_data([sat_data['lons'][frame], task['longitude']], 
+                                                       [sat_data['lats'][frame], task['latitude']])
             else:
                 # Remove the line if the satellite is not imaging
                 if active_imaging_lines[sat] is not None:

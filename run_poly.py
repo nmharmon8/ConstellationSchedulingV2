@@ -51,7 +51,7 @@ ppo_config.model.update(
 )
 
 algo = ppo_config.build()
-algo.restore("./logs/v6/")
+algo.restore("./logs/v8/")
 
 config['env']['time_limit'] = 100000
 
@@ -90,33 +90,32 @@ data_per_step = []
 step = 0
 
 # while not done and not truncated:
-while step < 10:
+while step < 100:
+    print("Getting action")
     action = algo.compute_single_action(obs)
-    sat_upcoming_tasks = {sat.id : env.simulator.task_manager.get_upcoming_tasks(sat, env.simulator.sim_time) for sat in env.simulator.satellites}
-    next_obs, reward, done, truncated, _ = env.step(action)
+    print("Stepping env")
+    next_obs, reward, done, truncated, info = env.step(action)
 
+    print("Recording data")
 
-    targets_this_step = {}
     satellite_data = {}
 
     current_time = env.simulator.sim_time
-
     for i, sat in enumerate(env.simulator.satellites):
         # current_time = sat.trajectory.sim_time
         r_BP_P = sat.trajectory.r_BP_P(current_time)
         lat, lon = ecef_to_latlon(r_BP_P[0], r_BP_P[1], r_BP_P[2])
-
         satellite_data[sat.id] = {}
         satellite_data[sat.id]['time'] = current_time
         satellite_data[sat.id]['latitude'] = lat
         satellite_data[sat.id]['longitude'] = lon
-        satellite_data[sat.id]['targets'] = sat_upcoming_tasks[sat.id]
+        satellite_data[sat.id]['task_being_collected'] = map_tasks(info['task_being_collected'][sat.id]) if info['task_being_collected'][sat.id] is not None else None
         satellite_data[sat.id]['actions'] = int(action[i])
         satellite_data[sat.id]['reward'] = reward
 
     data_per_step.append(satellite_data)
 
-    print(f"Obs: {obs}, Action: {action}, Reward: {reward} Done: {done} Truncated: {truncated}")
+    # print(f"Obs: {obs}, Action: {action}, Reward: {reward} Done: {done} Truncated: {truncated}")
     obs = next_obs
     total_reward += reward
 
@@ -134,9 +133,9 @@ json_data['targets'] = tasks
 
 
 
-for step in data_per_step:
-    for sat in step:
-        step[sat]['targets'] = [map_tasks(target) for target in step[sat]['targets']]
+# for step in data_per_step:
+#     for sat in step:
+#         step[sat]['targets'] = [map_tasks(target) for target in step[sat]['targets']]
 
 
 print("Data per step: ", data_per_step)
