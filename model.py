@@ -6,80 +6,12 @@ import numpy as np
 from gymnasium.spaces import Discrete, Tuple
 from ray.rllib.models.torch.torch_modelv2 import TorchModelV2
 from ray.rllib.models.torch.misc import SlimFC, normc_initializer
-
 from ray.rllib.models import ModelCatalog
 
+from rl.trans import TransformerConfig, CrossBlock, LayerNorm, Block
 
 
-class SatModel(TorchModelV2, nn.Module):
-    def __init__(self, obs_space, action_space, num_outputs, model_config, name):
-        TorchModelV2.__init__(
-            self, obs_space, action_space, num_outputs, model_config, name
-        )
-        nn.Module.__init__(self)
 
-        # print(f"Sat Model Observation space: {obs_space}")
-        # print(f"Sat Model Action space: {action_space}")
-        # (RolloutWorker pid=330260) Sat Model Observation space: Box(-1.0, 1.0, (33,), float32)
-        # (RolloutWorker pid=330260) Sat Model Action space: Tuple(Discrete(4), Discrete(4), Discrete(4))
-
-        print(f"Sat Model action space: {action_space}")
-
-        self.n_actions = sum([a.n for a in action_space.spaces])
-        # self.n_actions = action_space.n
-        self.n_sats = len(action_space.spaces)
-        # self.n_sats = 1
-
-        self.obs_dim = obs_space.shape[0]
-
-        print(f"Sat Model observation space: {obs_space}")
-        print(f"Sat Model action space: {action_space}")
-
-        # Shared layers
-        self.shared_layers = nn.Sequential(
-            SlimFC(self.obs_dim, 512, activation_fn="tanh", initializer=normc_initializer(1.0)),
-            SlimFC(512, 512, activation_fn="tanh", initializer=normc_initializer(1.0))
-        )
-
-        # Action branch
-        self.action_branch = SlimFC(512, self.n_actions, activation_fn=None, initializer=normc_initializer(1.0))
-
-        # Value function
-        self.value_branch = SlimFC(512, 1, activation_fn=None, initializer=normc_initializer(1.0))
-
-        # Holds the current "base" output (before logits layer).
-        self._features = None
-
-    def forward(self, input_dict, state, seq_lens):
-
-        print(f"Sat Model forward obs: {input_dict['obs'].shape}")
-
-        obs = torch.cat(input_dict["obs"], dim=1)
-
-        # obs = input_dict["obs"]
-
-        # print(f"Sat Model forward obs: {obs.shape}")
-
-        # obs = torch.ones_like(obs)
-
-        # Check for nan or inf in obs
-        if torch.isnan(obs).any() or torch.isinf(obs).any():
-            print(f"Observation contains nan or inf: {obs}")
-            print(f"Input dict: {input_dict}")
-
-        x = self.shared_layers(obs)
-        self._features = x.clone()
-        action_out = self.action_branch(x)
-        # action_out = action_out.view(-1, self.n_sats, self.n_actions // self.n_sats,) #[batch, n_sats, n_actions]
-        return action_out, []
-    
-    def value_function(self):
-        assert self._features is not None, "Must call forward() first"
-        return self.value_branch(self._features).squeeze(1)
-
-ModelCatalog.register_custom_model("sat_model", SatModel)
-
-from rl.trans import TransformerConfig, CrossBlock, LayerNorm
 
 class SimpleModel(TorchModelV2, nn.Module):
     def __init__(self, obs_space, action_space, num_outputs, model_config, name):
@@ -115,15 +47,27 @@ class SimpleModel(TorchModelV2, nn.Module):
             bias=False
         )
 
+
+
+        self.input_proj = nn.Linear(obs_space.shape[1], self.config.n_embd, bias=self.config.bias)
+        self.input_encoder = nn.ModuleDict(dict(
+            h = nn.ModuleList([Block(self.config, causal=False) for _ in range(3)]),
+            ln_f = LayerNorm(self.config.n_embd, bias=self.config.bias),
+        ))
+
+        
         self.transformer = nn.ModuleDict(dict(
             h = nn.ModuleList([CrossBlock(self.config, causal=False) for _ in range(3)]),
             ln_f = LayerNorm(self.config.n_embd, bias=self.config.bias),
         ))
 
-        self.obs_dim = obs_space.shape[0] * obs_space.shape[1]
+        self.feature_token = nn.Parameter(torch.randn(1, 1, self.config.n_embd))
 
+        self.feature_transformer = nn.ModuleDict(dict(
+            h = nn.ModuleList([CrossBlock(self.config, causal=False) for _ in range(3)]),
+            ln_f = LayerNorm(self.config.n_embd, bias=self.config.bias),
+        ))
 
-        self.input_proj = nn.Linear(self.obs_dim, self.config.n_embd, bias=self.config.bias)
 
         self.start_tokens = nn.Parameter(torch.randn(1, 1, self.config.n_embd))
         self.action_embed = nn.Embedding(self.n_actions, self.config.n_embd)
@@ -137,17 +81,33 @@ class SimpleModel(TorchModelV2, nn.Module):
 
     def forward(self, input_dict, state, seq_lens):
 
-        obs = input_dict['obs'].view(-1, self.obs_dim).float()
+        # obs = input_dict['obs'].view(-1, self.obs_dim).float()
+        obs = input_dict['obs'].float()
+        b, n_sats, n_features = obs.shape
 
-        x = self.input_proj(obs).unsqueeze(1)
+        x = self.input_proj(obs)
+        for i, block in enumerate(self.input_encoder.h):
+            x = block(x)
+
+        feature_x = self.feature_token.expand(b, -1, -1)
+        for i, block in enumerate(self.feature_transformer.h):
+            feature_x = block(feature_x, x)
+
+
+        self._features = feature_x
+
         self._features = x.clone()[:, -1, :]
 
         return x, []
     
-    def action_module(self, x, state):
+    def action_module(self, x, prev_actions):
 
-        start_idx = self.start_tokens.expand(x.shape[0], -1, -1)
-        a_n_idx = self.action_embed(state.long())
+        idx = self.start_tokens.expand(x.shape[0], -1, -1)
+
+        if len(prev_actions) > 0:
+            prev_actions = torch.stack(prev_actions, dim=1).long()
+            print(f"Prev actions: {prev_actions.shape}")
+            idx = torch.cat([idx, self.action_embed(prev_actions)], dim=1)
 
         def get_action(idx):
 
@@ -159,10 +119,9 @@ class SimpleModel(TorchModelV2, nn.Module):
 
             return action_out
         
-        a1 = get_action(start_idx)
-        a2 = get_action(a_n_idx)
+        action  = get_action(idx)
 
-        return a1, a2
+        return action
     
     def value_function(self):
         assert self._features is not None, "Must call forward() first"
