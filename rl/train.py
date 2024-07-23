@@ -43,7 +43,7 @@ ppo_config = (
 ppo_config.model.update(
     {
         "custom_model": "simple_model",
-        # "custom_action_dist": "sat_dist",
+        "custom_action_dist": "binary_autoregressive_dist",
     }
 )
 

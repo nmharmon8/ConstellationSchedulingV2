@@ -1,5 +1,5 @@
 
-local_mode: False # I think reduces to single process, for debugging
+local_mode: True # I think reduces to single process, for debugging
 
 env_runners:
   sample_timeout_s: 1000000.0

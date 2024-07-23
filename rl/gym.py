@@ -26,6 +26,9 @@ class SatelliteTasking(Env):
 
         # self.action_space = spaces.Box(low=0, high=1, shape=(3,))
         self.action_space = spaces.Tuple((spaces.Discrete(10), spaces.Discrete(10)))
+        # self.action_space = spaces.Sequence(spaces.Discrete(10))
+        # self.action_space = spaces.Tuple((spaces.Discrete(10), spaces.Discrete(10)))
+
         # self.observation_space = spaces.Box(low=0, high=1, shape=(3,))
         self.observation_space = spaces.Box(low=0, high=1, shape=(2, 30))
 
