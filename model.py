@@ -106,7 +106,6 @@ class SimpleModel(TorchModelV2, nn.Module):
 
         if len(prev_actions) > 0:
             prev_actions = torch.stack(prev_actions, dim=1).long()
-            print(f"Prev actions: {prev_actions.shape}")
             idx = torch.cat([idx, self.action_embed(prev_actions)], dim=1)
 
         def get_action(idx):

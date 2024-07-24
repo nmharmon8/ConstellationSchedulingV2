@@ -5,6 +5,7 @@ from gymnasium import Env, spaces
 
 from rl.sim import Simulator
 
+
 class SatelliteTasking(Env):
 
 
@@ -17,6 +18,13 @@ class SatelliteTasking(Env):
     """
 
 
+
+
+    @property
+    def dtype(self):
+        return self.space.dtype
+
+
     def __init__(self, config):
 
         self.config = config
@@ -25,12 +33,14 @@ class SatelliteTasking(Env):
         self.latest_step_duration = 0.0
 
         # self.action_space = spaces.Box(low=0, high=1, shape=(3,))
-        self.action_space = spaces.Tuple((spaces.Discrete(10), spaces.Discrete(10)))
+        # self.action_space = spaces.Tuple((spaces.Discrete(10), spaces.Discrete(10)))
         # self.action_space = spaces.Sequence(spaces.Discrete(10))
+        # self.action_space = SequenceWithShape(10)
+        self.action_space = spaces.Tuple([spaces.Discrete(10) for _ in range(config['n_sats'])])
         # self.action_space = spaces.Tuple((spaces.Discrete(10), spaces.Discrete(10)))
 
         # self.observation_space = spaces.Box(low=0, high=1, shape=(3,))
-        self.observation_space = spaces.Box(low=0, high=1, shape=(2, 30))
+        self.observation_space = spaces.Box(low=0, high=1, shape=(config['n_sats'], 30))
 
         
 

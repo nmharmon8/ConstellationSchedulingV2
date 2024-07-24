@@ -24,4 +24,8 @@ env:
   max_step_duration: 180.0
   time_limit: 6000
   n_access_windows: 10
+  n_sats: 50
+
+  min_tasks: 300
+  max_tasks: 3000
 

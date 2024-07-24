@@ -12,7 +12,7 @@ from rl.task import TaskManager
 # SimulationBaseClass.SimBaseClass
 class Simulator():
 
-    def __init__(self, sim_rate=1.0, max_step_duration=600.0, time_limit=3000, n_access_windows=10, **kwargs):
+    def __init__(self, sim_rate=1.0, max_step_duration=600.0, time_limit=3000, n_access_windows=10, n_sats=2, min_tasks=200, max_tasks=3000, **kwargs):
 
         self.sim_time = 0.0
 
@@ -23,8 +23,14 @@ class Simulator():
 
         self.world = None
 
-        self.satellites = [Satellite("EO-1", self, self.world, **sat_args), Satellite("EO-2", self, self.world, **sat_args)]
-        self.task_manager = TaskManager(500)
+        # self.satellites = [Satellite("EO-1", self, self.world, **sat_args), Satellite("EO-2", self, self.world, **sat_args)]
+        
+        print(f"Number of satellites: {n_sats}")
+        
+        self.satellites = [Satellite(f"EO-{i}", self, self.world, **sat_args) for i in range(n_sats)]
+        self.task_manager = TaskManager(max_step_duration=max_step_duration, min_tasks=min_tasks, max_tasks=max_tasks)
+
+        print("Sats and task manager created")
 
         self.cum_reward = 0
 
@@ -88,5 +94,5 @@ class Simulator():
             observations.append(sat_observations)
 
         observations = np.stack(observations, axis=0)
-        
+
         return observations

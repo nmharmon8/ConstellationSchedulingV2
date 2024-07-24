@@ -1,5 +1,5 @@
 from bisect import insort, bisect_left
-
+import random
 import numpy as np
 
 from scipy.optimize import minimize_scalar, root_scalar
@@ -104,10 +104,11 @@ class Task:
 
 class TaskManager:
 
-    def __init__(self, n_targets, generation_duration=600.0):
-        self.tasks = self.get_random_tasks(n_targets)
+    def __init__(self, min_tasks=300, max_tasks=3000, max_step_duration=600.0, **kwargs):
+        self.n_tasks = random.randint(min_tasks, max_tasks)
+        self.tasks = self.get_random_tasks(self.n_tasks)
         self.window_calculation_time = 0
-        self.generation_duration = generation_duration
+        self.generation_duration = max_step_duration
 
     def step(self):
         reward = 0
