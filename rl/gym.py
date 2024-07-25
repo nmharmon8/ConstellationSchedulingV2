@@ -5,6 +5,11 @@ from gymnasium import Env, spaces
 
 from rl.sim import Simulator
 
+from memory_profiler import profile
+import psutil
+import tracemalloc
+
+
 
 class SatelliteTasking(Env):
 
@@ -87,10 +92,11 @@ class SatelliteTasking(Env):
             del self.simulator
 
 
+def main(config):
 
-if __name__ == "__main__":
+
     import random
-    env = SatelliteTasking()
+    env = SatelliteTasking(config['env'])
     obs, info = env.reset()
     done = False
     truncated = False
@@ -106,3 +112,10 @@ if __name__ == "__main__":
         step += 1
         if step == 3:
             break
+
+
+if __name__ == "__main__":
+    from rl.config import parse_args, load_config
+    args = parse_args()
+    config = load_config(args.config)
+    main(config)

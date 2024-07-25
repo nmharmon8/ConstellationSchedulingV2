@@ -43,9 +43,16 @@ ppo_config = (
 ppo_config.model.update(
     {
         "custom_model": "simple_model",
-        "custom_action_dist": "autoregressive_dist",
+        # "custom_action_dist": "autoregressive_dist",
     }
 )
+
+# ppo_config.model.update(
+#     {
+#         "custom_model": "sat_model",
+#         # "custom_action_dist": "autoregressive_dist",
+#     }
+# )
 
 algo = ppo_config.build()
 

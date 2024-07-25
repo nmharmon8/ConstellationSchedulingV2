@@ -61,7 +61,12 @@ def default_sat_args(dyn_type, fsw_type, **kwargs):
         Dictionary of arguments for simulation models.
     """
     defaults = collect_default_args(dyn_type)
+
+    print(f"Defaults: {defaults}")
+
     defaults = safe_dict_merge(defaults, collect_default_args(fsw_type))
+
+    
     for name in dir(fsw_type):
         if inspect.isclass(getattr(fsw_type, name)) and issubclass(
             getattr(fsw_type, name), fsw.Task
@@ -70,16 +75,22 @@ def default_sat_args(dyn_type, fsw_type, **kwargs):
                 defaults, collect_default_args(getattr(fsw_type, name))
             )
 
+    print(f"Defaults: {defaults}")
+
+    exit()
+
     for k, v in kwargs.items():
         if k not in defaults:
             raise KeyError(f"{k} not a valid key for sat_args")
         defaults[k] = v
+
+
     return defaults
 
 
 class Satellite:
 
-    def __init__(self, name, simulator=None, world=None, sim_rate=1.0, utc_init=None, **kwargs):
+    def __init__(self, name, utc_init=None):
 
         self.name = name
         self.logger = logging.getLogger(__name__).getChild(self.name)
@@ -93,33 +104,18 @@ class Satellite:
         if self.utc_init is None:
             self.utc_init = datetime.now().strftime("%Y %b %d %H:%M:%S.%f (UTC)")
 
-        self.dyn_type = dyn.FullFeaturedDynModel
-        # self.dynamics = None
-        self.fsw_type = fsw.SteeringImagerFSWModel
-        # self.fsw = None
+        # Orbital elements.
+        self.oe= random_orbit(alt=800)
+        # Gravitational parameter
+        self.mu = 398600436000000.0
 
-        # self.simulator = simulator
-        # self.world = world
-
-        self.sat_args_generator = default_sat_args(self.dyn_type, self.fsw_type, **kwargs)
-        self.requires_retasking = True
-        self.sat_args = {
-            k: v if not callable(v) else v() for k, v in self.sat_args_generator.items()
-        }
-        # print(f"Sat Args: {self.sat_args}")
-        # I think the trajectory is just for utility
         self.trajectory = TrajectorySimulator(
             utc_init=self.utc_init,
-            rN=self.sat_args["rN"],
-            vN=self.sat_args["vN"],
-            oe=self.sat_args["oe"],
-            mu=self.sat_args["mu"],
+            rN=None, #self.sat_args["rN"],
+            vN=None, #self.sat_args["vN"],
+            oe=self.oe,
+            mu=self.mu,
         )
-        # self._timed_terminal_event_name = None
-        # # I think the dynamics is the actual satellite being simulated
-        # self.dynamics = dyn.FullFeaturedDynModel(self, self.sim_rate, **self.sat_args)
-        # self.fsw = fsw.SteeringImagerFSWModel(self, self.sim_rate, **self.sat_args)
-        
 
     @property
     def id(self):
@@ -137,14 +133,22 @@ class Satellite:
     def get_r_BP_P_interp(self, end_time):
         self.trajectory.extend_to(end_time)
         return self.trajectory.r_BP_P
+    
+
+    def __del__(self):
+        # Delete the trajectory simulator
+        del self.trajectory
 
 
 
 if __name__ == "__main__":
 
-    sat = Satellite("EO-1", None, **sat_args)
+    print("Creating satellites")
 
-    from rl.sim import get_random_tasks
-    tasks = get_random_tasks(100)
+    # Create 100 satellites
+    sats = [Satellite(f"EO-{i}") for i in range(100)]
 
-    sat.calculate_access_windows(tasks)
+    print(f"Number of satellites: {len(sats)}")
+
+    # Delete the satellites
+    del sats

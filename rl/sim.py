@@ -27,7 +27,7 @@ class Simulator():
         
         print(f"Number of satellites: {n_sats}")
         
-        self.satellites = [Satellite(f"EO-{i}", self, self.world, **sat_args) for i in range(n_sats)]
+        self.satellites = [Satellite(f"EO-{i}") for i in range(n_sats)]
         self.task_manager = TaskManager(max_step_duration=max_step_duration, min_tasks=min_tasks, max_tasks=max_tasks)
 
         print("Sats and task manager created")
@@ -96,3 +96,9 @@ class Simulator():
         observations = np.stack(observations, axis=0)
 
         return observations
+    
+    def __del__(self):
+        # Delete the task manager
+        del self.task_manager
+        # Delete the satellites
+        del self.satellites 

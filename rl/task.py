@@ -148,7 +148,7 @@ class TaskManager:
         calculation_end = self.generation_duration * np.ceil(
             calculation_end / self.generation_duration
         )
-        # print(f"Calculating windows from {calculation_start} to {calculation_end}")
+        print(f"Calculating windows from {calculation_start} to {calculation_end}")
 
         r_BP_P_interp = satellite.get_r_BP_P_interp(calculation_end)
         # print(f"Interpolator: {r_BP_P_interp}")
