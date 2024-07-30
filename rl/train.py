@@ -1,6 +1,7 @@
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
+import torch
 from ray.rllib.algorithms.ppo import PPOConfig
 import ray
 
@@ -11,8 +12,12 @@ args = parse_args()
 name = args.name
 config = load_config(args.config)
 
+# Determine if GPU should be used
+use_gpu = config.get('use_gpu', False)
+num_gpus = 1 if use_gpu and torch.cuda.is_available() else 0
+
 import os
-ray.init(local_mode=config['local_mode'], _temp_dir=os.path.abspath(f"./logs/{name}"))
+ray.init(local_mode=config['local_mode'], _temp_dir=os.path.abspath(f"./logs/{name}"), num_gpus=num_gpus)
 
 
 
@@ -37,13 +42,13 @@ ppo_config = (
     .callbacks(CustomDataCallbacks)
     .framework("torch")
     .checkpointing(export_native_model_files=True)
-
+    .resources(num_gpus=num_gpus) 
 )
 
 ppo_config.model.update(
     {
         "custom_model": "simple_model",
-        # "custom_action_dist": "autoregressive_dist",
+        # "custom_action_dist": "message_dist",
     }
 )
 
@@ -95,5 +100,6 @@ algo.stop()
 
 ray.shutdown()
 
-
-# python -m rl.train --config=rl/configs/basic_config.yaml
+"""
+python -m rl.train --config=rl/configs/basic_config.yaml --name=v3
+"""

@@ -1,41 +1,55 @@
 import numpy as np  
+import random
+from datetime import datetime
 
-# from Basilisk.utilities import SimulationBaseClass
-from Basilisk.utilities import macros as mc
-from Basilisk.utilities import orbitalMotion
+from bsk_rl.utils.orbital import TrajectorySimulator
+from bsk_rl.utils.orbital import random_orbit
 
-from bsk_rl.sim.world import GroundStationWorldModel
+from tqdm import tqdm
 
 from rl.sat import Satellite, sat_args
 from rl.task import TaskManager
 
-# SimulationBaseClass.SimBaseClass
 class Simulator():
 
-    def __init__(self, sim_rate=1.0, max_step_duration=600.0, time_limit=3000, n_access_windows=10, n_sats=2, min_tasks=200, max_tasks=3000, **kwargs):
+    def __init__(self, sim_rate=1.0, max_step_duration=600.0, time_limit=3000, n_access_windows=10, n_sats=2, min_tasks=200, max_tasks=3000, n_trajectory_factor=20, **kwargs):
 
-        self.sim_time = 0.0
-
+        self.n_sats = n_sats
+        self.min_tasks = min_tasks
+        self.max_tasks = max_tasks
         self.sim_rate = sim_rate
         self.max_step_duration = max_step_duration
         self.time_limit = time_limit
         self.n_access_windows = n_access_windows
 
-        self.world = None
 
-        # self.satellites = [Satellite("EO-1", self, self.world, **sat_args), Satellite("EO-2", self, self.world, **sat_args)]
-        
-        print(f"Number of satellites: {n_sats}")
-        
-        self.satellites = [Satellite(f"EO-{i}") for i in range(n_sats)]
-        self.task_manager = TaskManager(max_step_duration=max_step_duration, min_tasks=min_tasks, max_tasks=max_tasks)
+        self.task_manager = None
 
-        print("Sats and task manager created")
+        # self.trajectories = []
+        # for _ in tqdm(range(n_trajectory_factor * n_sats)):
+        #     traj = TrajectorySimulator(
+        #         utc_init=datetime.now().strftime("%Y %b %d %H:%M:%S.%f (UTC)"), rN=None, vN=None, oe=random_orbit(alt=800), mu=398600436000000.0)
+        #     traj.extend_to(self.time_limit)
+        #     self.trajectories.append(traj)
+
+        # self.satellites = []
+        # for trj in random.sample(self.trajectories, self.n_sats):
+        #     self.satellites.append(Satellite(f"EO-{len(self.satellites)}", trj))
+
+    def reset(self):
+        # self.satellites = []
+        # for trj in random.sample(self.trajectories, self.n_sats):
+        #     self.satellites.append(Satellite(f"EO-{len(self.satellites)}", trj))
+
+        self.satell
+
+        self.task_manager = TaskManager(max_step_duration=self.max_step_duration, min_tasks=self.min_tasks, max_tasks=self.max_tasks)
 
         self.cum_reward = 0
-
+        self.sim_time = 0.0
         self.task_being_collected = {}
-
+        observations = self.get_obs()
+        return observations, {}
 
     def step(self, actions):
         # Simulation time
@@ -52,17 +66,14 @@ class Simulator():
             else:
                 self.task_being_collected[satellite.id] = None
 
-
         # Now get the reward based on the action taken from start to end time
         reward = self.task_manager.step()
         self.cum_reward += reward
         # Update the simulation time
         self.sim_time = end_time
-
         # Get the next observations
         observations = self.get_obs()
-      
-
+    
         return observations, reward, self.task_being_collected
     
 
@@ -102,3 +113,29 @@ class Simulator():
         del self.task_manager
         # Delete the satellites
         del self.satellites 
+
+
+if __name__ == "__main__":
+    import time
+
+    n_sats = 5
+
+    sim = Simulator(sim_rate=1.0, max_step_duration=180.0, time_limit=900, n_access_windows=10, n_sats=n_sats, min_tasks=5000, max_tasks=5000, n_trajectory_factor=2)
+
+    obs, info = sim.reset()
+
+    print(f"Observations shape: {obs.shape}")
+
+
+    while True:
+
+        while not sim.done:
+            next_obs, reward, task_being_collected = sim.step(tuple([0] * n_sats))
+
+            # print(f"Obs: {next_obs.shape}, Reward: {reward} Done: {task_being_collected}")
+            print(f"Reward: {reward}")
+
+        obs, info = sim.reset()
+
+   
+

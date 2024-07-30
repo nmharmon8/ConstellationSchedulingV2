@@ -148,7 +148,7 @@ class TaskManager:
         calculation_end = self.generation_duration * np.ceil(
             calculation_end / self.generation_duration
         )
-        print(f"Calculating windows from {calculation_start} to {calculation_end}")
+        # print(f"Calculating windows from {calculation_start} to {calculation_end}")
 
         r_BP_P_interp = satellite.get_r_BP_P_interp(calculation_end)
         # print(f"Interpolator: {r_BP_P_interp}")
@@ -226,7 +226,7 @@ class TaskManager:
         elev_0, elev_1 = root_fn(window[0]), root_fn(window[1])
 
         if elev_0 < 0 and elev_1 < 0:
-            print("initial_generation_duration is shorter than the maximum window length; some windows may be neglected.")
+            # print("initial_generation_duration is shorter than the maximum window length; some windows may be neglected.")
             return []
         elif elev_0 < 0 or elev_1 < 0:
             return [root_scalar(root_fn, bracket=window).root]
