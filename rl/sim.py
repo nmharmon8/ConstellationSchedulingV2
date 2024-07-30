@@ -25,23 +25,18 @@ class Simulator():
 
         self.task_manager = None
 
-        # self.trajectories = []
-        # for _ in tqdm(range(n_trajectory_factor * n_sats)):
-        #     traj = TrajectorySimulator(
-        #         utc_init=datetime.now().strftime("%Y %b %d %H:%M:%S.%f (UTC)"), rN=None, vN=None, oe=random_orbit(alt=800), mu=398600436000000.0)
-        #     traj.extend_to(self.time_limit)
-        #     self.trajectories.append(traj)
-
-        # self.satellites = []
-        # for trj in random.sample(self.trajectories, self.n_sats):
-        #     self.satellites.append(Satellite(f"EO-{len(self.satellites)}", trj))
+        self.trajectories = []
+        for _ in tqdm(range(n_trajectory_factor * n_sats)):
+            traj = TrajectorySimulator(
+                utc_init=datetime.now().strftime("%Y %b %d %H:%M:%S.%f (UTC)"), rN=None, vN=None, oe=random_orbit(alt=800), mu=398600436000000.0)
+            traj.extend_to(self.time_limit)
+            self.trajectories.append(traj)
+            
 
     def reset(self):
-        # self.satellites = []
-        # for trj in random.sample(self.trajectories, self.n_sats):
-        #     self.satellites.append(Satellite(f"EO-{len(self.satellites)}", trj))
-
-        self.satell
+        self.satellites = []
+        for trj in random.sample(self.trajectories, self.n_sats):
+            self.satellites.append(Satellite(f"EO-{len(self.satellites)}", trj))
 
         self.task_manager = TaskManager(max_step_duration=self.max_step_duration, min_tasks=self.min_tasks, max_tasks=self.max_tasks)
 
