@@ -90,7 +90,7 @@ def default_sat_args(dyn_type, fsw_type, **kwargs):
 
 class Satellite:
 
-    def __init__(self, name, utc_init=None):
+    def __init__(self, name, trajectory):
 
         self.name = name
         self.logger = logging.getLogger(__name__).getChild(self.name)
@@ -100,22 +100,27 @@ class Satellite:
         # self._timed_terminal_event_name = None
         # self.sim_rate = sim_rate
         # # UTC Date string '2008 APR 06 19:39:56.515 (UTC)'
-        self.utc_init = utc_init
-        if self.utc_init is None:
-            self.utc_init = datetime.now().strftime("%Y %b %d %H:%M:%S.%f (UTC)")
+        # self.utc_init = utc_init
+        # if self.utc_init is None:
+        #     self.utc_init = datetime.now().strftime("%Y %b %d %H:%M:%S.%f (UTC)")
 
-        # Orbital elements.
-        self.oe= random_orbit(alt=800)
-        # Gravitational parameter
-        self.mu = 398600436000000.0
+        # # Orbital elements.
+        # self.oe= random_orbit(alt=800)
+        # # Gravitational parameter
+        # self.mu = 398600436000000.0
 
-        self.trajectory = TrajectorySimulator(
-            utc_init=self.utc_init,
-            rN=None, #self.sat_args["rN"],
-            vN=None, #self.sat_args["vN"],
-            oe=self.oe,
-            mu=self.mu,
-        )
+
+
+        # self.trajectory = TrajectorySimulator(
+        #     utc_init=self.utc_init,
+        #     rN=None, #self.sat_args["rN"],
+        #     vN=None, #self.sat_args["vN"],
+        #     oe=self.oe,
+        #     mu=self.mu,
+        # )
+
+        self.trajectory = trajectory
+
 
     @property
     def id(self):

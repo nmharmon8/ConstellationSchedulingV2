@@ -49,10 +49,10 @@ class Task:
     def step(self):
         reward = 0
         if len(self.sats_collecting) > 0:
-            valid_collections = self.count_valid_collections()
-            if valid_collections >= self.simultaneous_collects_required:
-                self.successful_collected = True
-                reward = self.priority
+            # valid_collections = self.count_valid_collections()
+            # if valid_collections >= self.simultaneous_collects_required:
+            self.successful_collected = True
+            reward = self.priority
         self.sats_collecting = []
         return reward
     
@@ -98,7 +98,8 @@ class Task:
             start_time, end_time = window
             start_time = start_time - current_time
             end_time = end_time - current_time
-            return np.array([start_time / 100000.0, end_time / 100000.0, self.priority])
+            # return np.array([start_time / 100000.0, end_time / 100000.0, self.priority])
+            return np.array([self.priority, self.priority, self.priority])
         return None
 
 
