@@ -17,21 +17,10 @@ config = load_config(args.config)
 use_gpu = config.get('use_gpu', False)
 num_gpus = 1 if use_gpu and torch.cuda.is_available() else 0
 
-
 import os
 ray.init(local_mode=config['local_mode'], _temp_dir=os.path.abspath(f"./logs/{name}"))
-
-
-
 from rl.gym import SatelliteTasking
 
-env_args = dict()
-
-print(config['training_args'])
-print(type(config['training_args']))
-
-
-# Generic config.
 ppo_config = (
     PPOConfig()
     .training(**config['training_args'])
@@ -54,53 +43,19 @@ ppo_config.model.update(
     }
 )
 
-# ppo_config.model.update(
-#     {
-#         "custom_model": "sat_model",
-#         # "custom_action_dist": "autoregressive_dist",
-#     }
-# )
-
 algo = ppo_config.build()
-
 
 for i in range(config['training']['steps']):
     result = algo.train()
     
     print((result))
-    # save_result = algo.save(checkpoint_dir=f"./logs/{name}")
-    # path_to_checkpoint = save_result.checkpoint.path
-    # print(
-    #     "An Algorithm checkpoint has been created inside directory: "
-    #     f"'{path_to_checkpoint}'."
-    # )
+    save_result = algo.save(checkpoint_dir=f"./logs/{name}")
+    path_to_checkpoint = save_result.checkpoint.path
+    print(
+        "An Algorithm checkpoint has been created inside directory: "
+        f"'{path_to_checkpoint}'."
+    )
 
-# run manual test loop: 1 iteration until done
-print("Finished training. Running manual test/inference loop.")
-
-
-
-env = SatelliteTasking()
-obs, info = env.reset()
-done = False
-truncated = False
-total_reward = 0
-steps = 0
-
-
-while not done and not truncated:
-    action = algo.compute_single_action(obs)
-    next_obs, reward, done, truncated, _ = env.step(action)
-    print(f"Obs: {obs}, Action: {action}, Reward: {reward} Done: {done} Truncated: {truncated}")
-    obs = next_obs
-    total_reward += reward
-
-
-
-print(f"Total reward in test episode: {total_reward}")
 algo.stop()
-
 ray.shutdown()
-
-
 # python -m rl.train --config=rl/configs/basic_config.yaml
