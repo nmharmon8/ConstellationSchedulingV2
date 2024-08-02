@@ -61,11 +61,7 @@ class Simulator():
         self.cum_reward += reward
         max_reward = 0
         for rs in self.last_obs:
-            max_reward += max(rs)
-
-        self.max_possible_reward += max_reward
-
-        # reward = reward / self.max_possible_reward
+            self.max_possible_reward += max(rs)
 
         self.last_obs = self.make_observation()
         return self.last_obs, reward, {}

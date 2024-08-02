@@ -1,45 +1,106 @@
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
+
+import torch
+
+from ray.rllib.algorithms.ppo import PPOConfig
 import ray
+
 from rl.config import parse_args, load_config
-import time
+from rl.data_callback import CustomDataCallbacks
 
 args = parse_args()
 name = args.name
 config = load_config(args.config)
 
+# Determine if GPU should be used
+use_gpu = config.get('use_gpu', False)
+num_gpus = 1 if use_gpu and torch.cuda.is_available() else 0
+
+
 import os
+ray.init(local_mode=config['local_mode'], _temp_dir=os.path.abspath(f"./logs/{name}"))
+
+
 
 from rl.gym import SatelliteTasking
 
-from ray.rllib.algorithms.ppo.ppo import PPO
-ppo_config = PPO.get_default_config()
+env_args = dict()
+
+print(config['training_args'])
+print(type(config['training_args']))
 
 
-ppo_config.environment(env=SatelliteTasking, env_config=config['env'])
-ppo_config.framework("torch")
-ppo_config.env_runners(num_env_runners=0, sample_timeout_s = 1000000.0)
-ppo_config.training(num_sgd_iter=5, gamma=0.0,  sgd_minibatch_size=128, train_batch_size=512)
+# Generic config.
+ppo_config = (
+    PPOConfig()
+    .training(**config['training_args'])
+    .env_runners(**config['env_runners'])
+    .api_stack(enable_rl_module_and_learner=False)
+    .environment(
+        env=SatelliteTasking,
+        env_config=config['env'],
+    )
+    .callbacks(CustomDataCallbacks)
+    .framework("torch")
+    .checkpointing(export_native_model_files=True)
+    .resources(num_gpus=num_gpus) 
+)
+
 ppo_config.model.update(
     {
         "custom_model": "simple_model",
+        "custom_action_dist": "message_dist",
     }
 )
-ppo_config.model["vf_share_layers"] = True
-ppo_config.resources(num_gpus=1)
 
-ray.init(local_mode=config['local_mode'], _temp_dir=os.path.abspath(f"./logs/{name}"))
+# ppo_config.model.update(
+#     {
+#         "custom_model": "sat_model",
+#         # "custom_action_dist": "autoregressive_dist",
+#     }
+# )
 
-print("Building PPO Algorithm")
 algo = ppo_config.build()
 
-print("Done building PPO Algorithm")
-
-print(f"Environment: {SatelliteTasking}")
-print(f"Environment Config: {config['env']}")
-print(f"Train Batch Size: {ppo_config.train_batch_size}")
-print(f"SGD Minibatch Size: {ppo_config.sgd_minibatch_size}")
 
 for i in range(config['training']['steps']):
     result = algo.train()
-    print(f"Step {i} done")
+    
+    print((result))
+    # save_result = algo.save(checkpoint_dir=f"./logs/{name}")
+    # path_to_checkpoint = save_result.checkpoint.path
+    # print(
+    #     "An Algorithm checkpoint has been created inside directory: "
+    #     f"'{path_to_checkpoint}'."
+    # )
+
+# run manual test loop: 1 iteration until done
+print("Finished training. Running manual test/inference loop.")
+
+
+
+env = SatelliteTasking()
+obs, info = env.reset()
+done = False
+truncated = False
+total_reward = 0
+steps = 0
+
+
+while not done and not truncated:
+    action = algo.compute_single_action(obs)
+    next_obs, reward, done, truncated, _ = env.step(action)
+    print(f"Obs: {obs}, Action: {action}, Reward: {reward} Done: {done} Truncated: {truncated}")
+    obs = next_obs
+    total_reward += reward
+
+
+
+print(f"Total reward in test episode: {total_reward}")
+algo.stop()
+
+ray.shutdown()
+
+
+# python -m rl.train --config=rl/configs/basic_config.yaml

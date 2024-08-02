@@ -1,18 +1,21 @@
 
-local_mode: true # I think reduces to single process, for debugging
+local_mode: false # I think reduces to single process, for debugging
+use_gpu: true
 
 env_runners:
   sample_timeout_s: 1000000.0
   num_env_runners: 0
+  num_cpus_per_env_runner: 1
 
 training:
   steps: 100000
 
 training_args:
   lr: 0.00003
-  gamma: 0.999
-  train_batch_size: 250
-  num_sgd_iter: 100
+  gamma: 0.0
+  train_batch_size: 128
+  sgd_minibatch_size: 32 # Default is 128
+  num_sgd_iter: 30 # Default is 30
   lambda_: 0.95
   use_kl_loss: False
   clip_param: 0.1
@@ -21,10 +24,12 @@ training_args:
 
 env:
   sim_rate: 1.0
-  max_step_duration: 180.0
-  time_limit: 6000
+  max_step_duration: 600.0
+  time_limit: 11400 # about 2 orbits
   n_access_windows: 10
   n_sats: 100
+
+  n_trajectory_factor: 50
 
   min_tasks: 300
   max_tasks: 3000
