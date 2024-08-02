@@ -5,10 +5,6 @@ from gymnasium import Env, spaces
 
 from rl.sim import Simulator
 
-from memory_profiler import profile
-import psutil
-import tracemalloc
-
 
 
 class SatelliteTasking(Env):
@@ -41,11 +37,11 @@ class SatelliteTasking(Env):
         # self.action_space = spaces.Tuple((spaces.Discrete(10), spaces.Discrete(10)))
         # self.action_space = spaces.Sequence(spaces.Discrete(10))
         # self.action_space = SequenceWithShape(10)
-        self.action_space = spaces.Tuple([spaces.Discrete(10) for _ in range(config['n_sats'])])
+        self.action_space = spaces.Tuple([spaces.Discrete(config['n_access_windows']) for _ in range(config['n_sats'])])
         # self.action_space = spaces.Tuple((spaces.Discrete(10), spaces.Discrete(10)))
 
         # self.observation_space = spaces.Box(low=0, high=1, shape=(3,))
-        self.observation_space = spaces.Box(low=0, high=1, shape=(config['n_sats'], 30))
+        self.observation_space = spaces.Box(low=0, high=1, shape=(config['n_sats'], config['n_access_windows']))
 
         
 
@@ -57,8 +53,8 @@ class SatelliteTasking(Env):
 
     def reset(self, seed=None, options=None):
 
-        if self.simulator is not None:
-            del self.simulator
+        # if self.simulator is not None:
+        #     del self.simulator
         
         seed = None
         if seed is None:
@@ -67,11 +63,13 @@ class SatelliteTasking(Env):
         super().reset(seed=seed)
         np.random.seed(seed)
 
-        self.simulator = Simulator(**self.config)
+        if self.simulator is None:
+            self.simulator = Simulator(**self.config)
 
         self.latest_step_duration = 0.0
 
-        observations = self.simulator.get_obs()
+        # observations = self.simulator.get_obs()
+        observations, _ = self.simulator.reset()
 
         return observations, {}
 

@@ -1,9 +1,9 @@
 
-local_mode: false # I think reduces to single process, for debugging
+local_mode: true # I think reduces to single process, for debugging
 
 env_runners:
   sample_timeout_s: 1000000.0
-  num_env_runners: 10
+  num_env_runners: 0
 
 training:
   steps: 100000
@@ -12,7 +12,7 @@ training_args:
   lr: 0.00003
   gamma: 0.999
   train_batch_size: 250
-  num_sgd_iter: 10
+  num_sgd_iter: 100
   lambda_: 0.95
   use_kl_loss: False
   clip_param: 0.1
@@ -24,7 +24,7 @@ env:
   max_step_duration: 180.0
   time_limit: 6000
   n_access_windows: 10
-  n_sats: 4
+  n_sats: 100
 
   min_tasks: 300
   max_tasks: 3000
