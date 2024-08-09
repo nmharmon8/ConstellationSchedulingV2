@@ -46,18 +46,16 @@ ppo_config = (
 ppo_config.model.update(
     {
         "custom_model": "simple_model",
-        # "custom_action_dist": "sat_dist",
+        "custom_action_dist": "message_dist",
     }
 )
 
 algo = ppo_config.build()
-algo.restore("./logs/v8/")
+algo.restore("./logs/v1/")
 
 config['env']['time_limit'] = 100000
 
 env = SatelliteTasking(config['env'])
-
-    
 
 
 obs, info = env.reset()
@@ -90,9 +88,10 @@ data_per_step = []
 step = 0
 
 # while not done and not truncated:
-while step < 100:
+while step < 10:
     print("Getting action")
-    action = algo.compute_single_action(obs)
+    # action = algo.compute_single_action(obs)
+    action = [0] * config['env']['n_sats']
     print("Stepping env")
     next_obs, reward, done, truncated, info = env.step(action)
 
@@ -149,8 +148,10 @@ json_data['steps'] = data_per_step
 
 print(json_data)
 
+print('Saving data to file')
 with open('data.json', 'w') as f:
     json.dump(json_data, f, indent=2)
 
+print('Done')
 
 ray.shutdown()

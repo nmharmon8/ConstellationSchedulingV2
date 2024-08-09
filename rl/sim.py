@@ -46,7 +46,7 @@ class Simulator():
         for satellite, action in zip(self.satellites, actions):
             # First n actions are for collecting tasks
             if action < self.n_access_windows and action < len(self.current_tasks_by_sat[satellite.id]):
-                task = self.current_tasks_by_sat[satellite.id][action]
+                _, task = self.current_tasks_by_sat[satellite.id][action]
                 task.collect(satellite, start_time, end_time)
                 self.task_being_collected[satellite.id] = task
             else:
@@ -58,6 +58,8 @@ class Simulator():
         self.cum_reward += reward
         # Update the simulation time
         self.sim_time = end_time
+
+        print(f"Reward: {reward}")
 
         # Get the next observations
         observations = self.get_obs()
@@ -75,7 +77,7 @@ class Simulator():
 
         # Update task windows
         for satellite in self.satellites:
-            self.task_manager.calculate_access_windows(satellite,  calculation_start=self.sim_time, duration=self.max_step_duration)
+            self.task_manager.calculate_access_windows(satellite,  calculation_start=self.sim_time, duration=self.max_step_duration * self.n_access_windows)
 
         self.current_tasks_by_sat = {}
         for satellite in self.satellites:
@@ -84,11 +86,12 @@ class Simulator():
         observations = []
         for satellite in self.satellites:
             sat_observations = []
-            for task in self.current_tasks_by_sat[satellite.id]:
-                sat_observations.append(task.get_observation(satellite.id, self.sim_time))
+            for task_start_time, task in self.current_tasks_by_sat[satellite.id]:
+                sat_observations.append(task.get_observation(satellite, self.sim_time, task_start_time))
 
             while len(sat_observations) < self.n_access_windows:
-                sat_observations.append(np.array([0, 0, 0]))
+                sat_observations.append(np.array([0, 0, 0, 0, 0]))
+
 
             sat_observations = np.concatenate(sat_observations)
             observations.append(sat_observations)

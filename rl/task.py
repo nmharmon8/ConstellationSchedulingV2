@@ -1,4 +1,5 @@
 from bisect import insort, bisect_left
+from collections import defaultdict
 import random
 import numpy as np
 
@@ -7,19 +8,28 @@ from Basilisk.utilities import orbitalMotion
 
 from bsk_rl.utils.orbital import elevation
 
+from pymap3d import ecef2geodetic
+
+
+def ecef_to_latlon(x, y, z):
+    lat, lon, alt = ecef2geodetic(x, y, z)
+    return lat, lon, alt
+
 class Task:
 
-    def __init__(self, name, r_LP_P, priority, simultaneous_collects_required=1, task_duration=30.0, min_elev=np.radians(45.0)):
+    def __init__(self, name, r_LP_P, priority, simultaneous_collects_required=1, task_duration=30.0, max_step_duration=600.0, min_elev=np.radians(45.0)):
         self.name = name
         self.r_LP_P = r_LP_P
         self.priority = priority
         self.min_elev = min_elev
         self.task_duration = task_duration
         self.simultaneous_collects_required = simultaneous_collects_required
-
-        self.sat_windows = {}
+        self.max_step_duration = max_step_duration
+    
+        self.collection_windows = defaultdict(list)
         self.sats_collecting = []
 
+    
         self.successful_collected = False
 
     @property
@@ -35,81 +45,95 @@ class Task:
     def count_valid_collections(self):
         valid_collections = 0
         for satellite, collect_start_time, collect_end_time in self.sats_collecting:
-            for window in self.sat_windows[satellite.id]:
-                # Calculate the overlaping time between the collection window and the task window
-                overlap_start = max(collect_start_time, window[0])
-                overlap_end = min(collect_end_time, window[1])
-                overlap_duration = overlap_end - overlap_start
-                if overlap_duration >= self.task_duration:
-                    # If the overlap duration is greater than the task duration, then the task is valid
-                    valid_collections += 1
-                    break
+            valid_collections += self.get_window(satellite, time=collect_start_time)
         return valid_collections
     
     def step(self):
         reward = 0
         if len(self.sats_collecting) > 0:
-            valid_collections = self.count_valid_collections()
-            if valid_collections >= self.simultaneous_collects_required:
-                self.successful_collected = True
-                reward = self.priority
+            # valid_collections = self.count_valid_collections()
+            # if valid_collections >= self.simultaneous_collects_required:
+            self.successful_collected = True
+            reward = self.priority
         self.sats_collecting = []
         return reward
     
     def add_window(self, satellite, new_window):
-        if satellite.id not in self.sat_windows:
-            self.sat_windows[satellite.id] = []
-            self.sat_windows[satellite.id].append(new_window)
-            return
-        windows = self.sat_windows[satellite.id]
-        # Find the position where the new window should be inserted
-        pos = bisect_left(windows, new_window[0], key=lambda x: x[0])
-        # Check for overlap and merge
-        to_remove = []
-        for i in range(max(0, pos - 1), min(len(windows), pos + 1)):
-            if self._windows_overlap(windows[i], new_window):
-                new_window = self._merge_windows(windows[i], new_window)
-                to_remove.append(i)
-        # Remove the overlapped windows
-        for i in reversed(to_remove):
-            windows.pop(i)
-        # Insert the merged window
-        insort(windows, new_window, key=lambda x: x[0])
 
-    def _windows_overlap(self, window1, window2):
-        return max(window1[0], window2[0]) <= min(window1[1], window2[1])
+        window_start = new_window[0]
+        window_end = new_window[1]
 
-    def _merge_windows(self, window1, window2):
-        return (min(window1[0], window2[0]), max(window1[1], window2[1]))
+        while window_start < window_end:
+            index = int(window_start // self.max_step_duration)
+            while index >= len(self.collection_windows[satellite.id]):
+                self.collection_windows[satellite.id].extend([0] * max(1, len(self.collection_windows[satellite.id])))
+            index_end = self.max_step_duration * (index + 1)
+            duration = min(index_end, window_end) - window_start
+            if duration > self.task_duration:
+                self.collection_windows[satellite.id][index] = 1
+            window_start = index_end
 
-    def get_upcoming_window(self, sat_id, current_time):
-        """
-        Returns the next window for a satellite, or None if there are no upcoming windows
-        """
-        if sat_id in self.sat_windows:
-            for window in self.sat_windows[sat_id]:
-                if window[0] >= current_time:
-                    return window
-        return None
+    def get_window(self, satellite, time=None, window_index=None):
+        assert time is not None or window_index is not None
+        if time is not None:
+            window_index = int(time // self.max_step_duration)
+        sat_id = satellite
+        if not isinstance(satellite, str):
+            sat_id = satellite.id
+        if sat_id not in self.collection_windows:
+            return 0
+        if window_index >= len(self.collection_windows[sat_id]):
+            return 0
+        return self.collection_windows[sat_id][window_index]
+
     
-    def get_observation(self, sat_id, current_time):
-        window = self.get_upcoming_window(sat_id, current_time)
-        if window is not None:
-            start_time, end_time = window
-            start_time = start_time - current_time
-            end_time = end_time - current_time
-            return np.array([start_time / 100000.0, end_time / 100000.0, self.priority])
-        return None
+    def get_collection_count_for_window(self, window_index):
+        return sum([self.get_window(sat_id, window_index=window_index) for sat_id in self.collection_windows.keys()])
+    
+    def is_task_possible_in_window(self, satellite, window_index):
+        if self.get_window(satellite, window_index=window_index) == 1:
+            if self.get_collection_count_for_window(window_index) >= self.simultaneous_collects_required:
+                return True
+        return False
+            
+    def get_upcoming_windows(self, satellite, start_time):
+        """
+        Returns the index of the next window for a satellite, or None if there are no upcoming windows
+        """
+        upcoming_windows = []
+        for i in range(int(start_time // self.max_step_duration), len(self.collection_windows[satellite.id])):
+            if self.is_task_possible_in_window(satellite, i):
+                upcoming_windows.append(i)
+        return upcoming_windows
+    
+    
+    def get_observation(self, satellite, current_time, task_start_time):
+        window_index = int(task_start_time // self.max_step_duration)
+        current_index = int(current_time // self.max_step_duration)
+        window_index_offset = window_index - current_index
 
+        
+
+        if self.is_task_possible_in_window(satellite, window_index):
+
+            # TODO: This could be better
+            lat, lon, _ = ecef_to_latlon(self.r_LP_P[0], self.r_LP_P[1], self.r_LP_P[2])
+            x = np.cos(np.radians(lat)) * np.cos(np.radians(lon))
+            y = np.cos(np.radians(lat)) * np.sin(np.radians(lon))
+            z = np.sin(np.radians(lat))
+
+            obs = np.array([window_index_offset / 100.0, self.priority, x, y, z])
+            return obs
+        return None
 
 class TaskManager:
 
     def __init__(self, min_tasks=300, max_tasks=3000, max_step_duration=600.0, **kwargs):
+        self.max_step_duration = max_step_duration
+        self.window_calculation_time = 0
         self.n_tasks = random.randint(min_tasks, max_tasks)
         self.tasks = self.get_random_tasks(self.n_tasks)
-        self.window_calculation_time = 0
-        self.generation_duration = max_step_duration
-
+        
     def step(self):
         reward = 0
         for task in self.tasks:
@@ -123,17 +147,17 @@ class TaskManager:
         for i in range(n_targets):
             x = np.random.normal(size=3)
             x *= radius / np.linalg.norm(x)
-            tasks.append(Task(f"tgt-{i}", x, np.random.rand()))
+            tasks.append(Task(f"tgt-{i}", x, np.random.rand(), max_step_duration=self.max_step_duration))
         return tasks
 
     def get_upcoming_tasks(self, satellite, current_time):
         upcoming_tasks = []
         for task in self.tasks:
-            window = task.get_upcoming_window(satellite.id, current_time)
-            if window is not None:
-                upcoming_tasks.append((window[0],task))
+            windows = task.get_upcoming_windows(satellite, current_time)
+            for window_index in windows:
+                upcoming_tasks.append((window_index * self.max_step_duration, task))
         upcoming_tasks.sort(key=lambda x: x[0])
-        upcoming_tasks = [task for _, task in upcoming_tasks]
+        print(f"Number of upcoming tasks: {len(upcoming_tasks)} for sat {satellite.id} for time {current_time}")
         return upcoming_tasks
             
 
@@ -143,10 +167,10 @@ class TaskManager:
             return []
 
         calculation_end = calculation_start + max(
-            duration, satellite.get_dt() * 2, self.generation_duration
+            duration, satellite.get_dt() * 2, self.max_step_duration
         )
-        calculation_end = self.generation_duration * np.ceil(
-            calculation_end / self.generation_duration
+        calculation_end = self.max_step_duration * np.ceil(
+            calculation_end / self.max_step_duration
         )
         print(f"Calculating windows from {calculation_start} to {calculation_end}")
 
@@ -226,7 +250,7 @@ class TaskManager:
         elev_0, elev_1 = root_fn(window[0]), root_fn(window[1])
 
         if elev_0 < 0 and elev_1 < 0:
-            print("initial_generation_duration is shorter than the maximum window length; some windows may be neglected.")
+            print("initial_max_step_duration is shorter than the maximum window length; some windows may be neglected.")
             return []
         elif elev_0 < 0 or elev_1 < 0:
             return [root_scalar(root_fn, bracket=window).root]

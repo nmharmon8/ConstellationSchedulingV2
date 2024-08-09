@@ -25,7 +25,7 @@ class SimpleModel(TorchModelV2, nn.Module):
         self.config = TransformerConfig(
             n_head=4,
             n_embd=512,
-            dropout=0.5,
+            dropout=0.0,
             bias=False
         )
 

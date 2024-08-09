@@ -4,7 +4,7 @@ use_gpu: true
 
 env_runners:
   sample_timeout_s: 1000000.0
-  num_env_runners: 12
+  num_env_runners: 8
   num_cpus_per_env_runner: 2
 
 training:
@@ -15,10 +15,12 @@ training_args:
   gamma: 0.0
   train_batch_size: 128
   sgd_minibatch_size: 32 # Default is 128
-  num_sgd_iter: 30 # Default is 30
+  num_sgd_iter: 8 # Default is 30
   lambda_: 0.95
-  use_kl_loss: False
-  clip_param: 0.1
+  kl_target: 0.01
+  kl_coeff: 0.2
+  use_kl_loss: True
+  clip_param: 0.2
   grad_clip: 0.5
 
 
@@ -27,10 +29,10 @@ env:
   max_step_duration: 600.0
   time_limit: 11400 # about 2 orbits
   n_access_windows: 10
-  n_sats: 100
+  n_sats: 10
 
-  n_trajectory_factor: 50
+  n_trajectory_factor: 1
 
-  min_tasks: 300
+  min_tasks: 3000
   max_tasks: 3000
 

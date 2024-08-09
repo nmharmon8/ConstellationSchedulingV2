@@ -4,6 +4,7 @@ import numpy as np
 from gymnasium import Env, spaces
 
 from rl.sim import Simulator
+# from rl.simple_sim import Simulator
 
 
 class SatelliteTasking(Env):
@@ -21,7 +22,7 @@ class SatelliteTasking(Env):
         self.latest_step_duration = 0.0
 
         self.action_space = spaces.Tuple([spaces.Discrete(10) for _ in range(config['n_sats'])])
-        self.observation_space = spaces.Box(low=0, high=1, shape=(config['n_sats'], 30))
+        self.observation_space = spaces.Box(low=-1, high=1, shape=(config['n_sats'], 5 * config['n_access_windows']))
 
     @property
     def cum_reward(self):
@@ -77,13 +78,13 @@ def main(config):
 
     step = 0
     while not done and not truncated:
-        action = [0, 0]
+        action = [0, 0, 0, 0]
         next_obs, reward, done, truncated, _ = env.step(action)
-        print(f"Obs: {obs}, Action: {action}, Reward: {reward} Done: {done} Truncated: {truncated}")
+        # print(f"Obs: {obs}, Action: {action}, Reward: {reward} Done: {done} Truncated: {truncated}")
         obs = next_obs
         total_reward += reward
         step += 1
-        if step == 3:
+        if step == 20:
             break
 
 

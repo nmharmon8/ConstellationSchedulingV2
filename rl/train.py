@@ -48,7 +48,8 @@ algo = ppo_config.build()
 for i in range(config['training']['steps']):
     result = algo.train()
     
-    print((result))
+    # print((result))
+    print(f"Step {i} done")
     save_result = algo.save(checkpoint_dir=f"./logs/{name}")
     path_to_checkpoint = save_result.checkpoint.path
     print(
