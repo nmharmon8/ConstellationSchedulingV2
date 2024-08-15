@@ -1,4 +1,5 @@
 import numpy as np  
+from datetime import datetime
 
 # from Basilisk.utilities import SimulationBaseClass
 from Basilisk.utilities import macros as mc
@@ -8,33 +9,37 @@ from bsk_rl.sim.world import GroundStationWorldModel
 
 from rl.sat import Satellite, sat_args
 from rl.task import TaskManager
+from bsk_rl.utils.orbital import random_orbit
+from bsk_rl.utils.orbital import TrajectorySimulator
 
-# SimulationBaseClass.SimBaseClass
+
 class Simulator():
 
-    def __init__(self, sim_rate=1.0, max_step_duration=600.0, time_limit=3000, n_access_windows=10, n_sats=2, min_tasks=200, max_tasks=3000, **kwargs):
-
-        self.sim_time = 0.0
+    def __init__(self, sim_rate=1.0, max_step_duration=600.0, time_limit=3000, max_sat_coordination=3, n_access_windows=10, n_sats=2, min_tasks=200, max_tasks=3000, n_trajectory_factor=20, **kwargs):
 
         self.sim_rate = sim_rate
         self.max_step_duration = max_step_duration
+        self.max_sat_coordination = max_sat_coordination
         self.time_limit = time_limit
         self.n_access_windows = n_access_windows
+        self.min_tasks = min_tasks
+        self.max_tasks = max_tasks
+        self.n_sats = n_sats
 
         self.world = None
 
-        # self.satellites = [Satellite("EO-1", self, self.world, **sat_args), Satellite("EO-2", self, self.world, **sat_args)]
-        
-        print(f"Number of satellites: {n_sats}")
-        
-        self.satellites = [Satellite(f"EO-{i}") for i in range(n_sats)]
-        self.task_manager = TaskManager(max_step_duration=max_step_duration, min_tasks=min_tasks, max_tasks=max_tasks)
+        print(f"Creating trajectories")
+        self.trajectories = [TrajectorySimulator(utc_init=datetime.now().strftime("%Y %b %d %H:%M:%S.%f (UTC)"), rN=None, vN=None, oe=random_orbit(alt=800), mu=398600436000000.0) for _ in range(n_trajectory_factor * n_sats)]
 
-        print("Sats and task manager created")
 
+    def reset(self):
+        self.sim_time = 0.0
         self.cum_reward = 0
-
-        self.task_being_collected = {}
+        # self.task_being_collected = {}
+        self.task_manager = TaskManager(max_step_duration=self.max_step_duration, max_sat_coordination=self.max_sat_coordination, min_tasks=self.min_tasks, max_tasks=self.max_tasks)
+        random_trajectories = np.random.choice(self.trajectories, self.n_sats, replace=False)
+        self.satellites = [Satellite(f"EO-{i}", trajectory=trajectory) for i, trajectory in enumerate(random_trajectories)]
+        return self.get_obs(), {}
 
 
     def step(self, actions):
@@ -42,15 +47,23 @@ class Simulator():
         start_time = self.sim_time
         end_time = self.sim_time + self.max_step_duration
 
+        info = {sat.id: {} for sat in self.satellites}
+        task_being_collected = {}
+
         # Now take actions
         for satellite, action in zip(self.satellites, actions):
             # First n actions are for collecting tasks
             if action < self.n_access_windows and action < len(self.current_tasks_by_sat[satellite.id]):
                 _, task = self.current_tasks_by_sat[satellite.id][action]
                 task.collect(satellite, start_time, end_time)
-                self.task_being_collected[satellite.id] = task
-            else:
-                self.task_being_collected[satellite.id] = None
+                task_being_collected[satellite.id] = task
+
+
+        # Build info for debugging and plotting        
+        for sat_id, task in task_being_collected.items():
+            task_reward = task.get_reward()
+            info[sat_id]['task_reward'] = task_reward
+            info[sat_id]['task'] = task
 
 
         # Now get the reward based on the action taken from start to end time
@@ -65,7 +78,7 @@ class Simulator():
         observations = self.get_obs()
       
 
-        return observations, reward, self.task_being_collected
+        return observations, reward, info
     
 
 
@@ -101,7 +114,13 @@ class Simulator():
         return observations
     
     def __del__(self):
-        # Delete the task manager
-        del self.task_manager
+        try:
+            # Delete the task manager
+            del self.task_manager
+        except:
+            print("Task manager not deleted")
         # Delete the satellites
-        del self.satellites 
+        try:
+            del self.satellites 
+        except:
+            print("Satellites not deleted")

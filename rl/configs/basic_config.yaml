@@ -26,13 +26,15 @@ training_args:
 
 env:
   sim_rate: 1.0
-  max_step_duration: 600.0
+  max_step_duration: 200.0
   time_limit: 11400 # about 2 orbits
   n_access_windows: 10
   n_sats: 10
 
-  n_trajectory_factor: 1
+  n_trajectory_factor: 20
 
-  min_tasks: 3000
+  min_tasks: 100
   max_tasks: 3000
+
+  max_sat_coordination: 3
 

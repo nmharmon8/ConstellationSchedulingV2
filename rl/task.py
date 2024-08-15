@@ -48,13 +48,19 @@ class Task:
             valid_collections += self.get_window(satellite, time=collect_start_time)
         return valid_collections
     
-    def step(self):
+    def get_reward(self):
         reward = 0
         if len(self.sats_collecting) > 0:
-            # valid_collections = self.count_valid_collections()
-            # if valid_collections >= self.simultaneous_collects_required:
-            self.successful_collected = True
-            reward = self.priority
+            valid_collections = self.count_valid_collections()
+            if valid_collections >= self.simultaneous_collects_required:
+                if self.simultaneous_collects_required > 1:
+                    print(f"Successful collection of task {self.id} with {valid_collections} valid collections")
+                self.successful_collected = True
+                reward = self.priority
+        return reward
+    
+    def step(self):
+        reward = self.get_reward()
         self.sats_collecting = []
         return reward
     
@@ -128,8 +134,9 @@ class Task:
 
 class TaskManager:
 
-    def __init__(self, min_tasks=300, max_tasks=3000, max_step_duration=600.0, **kwargs):
+    def __init__(self, min_tasks=300, max_tasks=3000, max_sat_coordination=3, max_step_duration=600.0, **kwargs):
         self.max_step_duration = max_step_duration
+        self.max_sat_coordination = max_sat_coordination
         self.window_calculation_time = 0
         self.n_tasks = random.randint(min_tasks, max_tasks)
         self.tasks = self.get_random_tasks(self.n_tasks)
@@ -147,7 +154,13 @@ class TaskManager:
         for i in range(n_targets):
             x = np.random.normal(size=3)
             x *= radius / np.linalg.norm(x)
-            tasks.append(Task(f"tgt-{i}", x, np.random.rand(), max_step_duration=self.max_step_duration))
+            priority = np.random.rand()
+            simultaneous_collects_required = np.random.randint(1, self.max_sat_coordination + 1)
+            priority *= simultaneous_collects_required + 1
+
+            # Normalize the priority
+            priority = priority / (self.max_sat_coordination + 1)
+            tasks.append(Task(f"tgt-{i}", x, max_step_duration=self.max_step_duration, simultaneous_collects_required=simultaneous_collects_required, priority=priority))
         return tasks
 
     def get_upcoming_tasks(self, satellite, current_time):
@@ -204,11 +217,7 @@ class TaskManager:
                     roots, candidate_window, (times[0], times[-1])
                 )
                 for new_window in new_windows:
-                    # print(f"New window: {new_window} task_id: {task.id} sat_id: {satellite.id}")
                     task.add_window(satellite, new_window)
-
-        
-
 
     @staticmethod
     def _find_candidate_windows(

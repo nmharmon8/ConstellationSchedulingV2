@@ -90,7 +90,7 @@ def default_sat_args(dyn_type, fsw_type, **kwargs):
 
 class Satellite:
 
-    def __init__(self, name, utc_init=None):
+    def __init__(self, name, trajectory=None, utc_init=None):
 
         self.name = name
         self.logger = logging.getLogger(__name__).getChild(self.name)
@@ -109,13 +109,15 @@ class Satellite:
         # Gravitational parameter
         self.mu = 398600436000000.0
 
-        self.trajectory = TrajectorySimulator(
-            utc_init=self.utc_init,
-            rN=None, #self.sat_args["rN"],
-            vN=None, #self.sat_args["vN"],
-            oe=self.oe,
-            mu=self.mu,
-        )
+        self.trajectory = trajectory
+        if self.trajectory is None:
+            self.trajectory = TrajectorySimulator(
+                utc_init=self.utc_init,
+                rN=None, #self.sat_args["rN"],
+                vN=None, #self.sat_args["vN"],
+                oe=self.oe,
+                mu=self.mu,
+            )
 
     @property
     def id(self):

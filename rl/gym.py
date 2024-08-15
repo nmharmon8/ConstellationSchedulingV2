@@ -1,4 +1,5 @@
 from time import time_ns
+import time
 
 import numpy as np
 from gymnasium import Env, spaces
@@ -18,7 +19,7 @@ class SatelliteTasking(Env):
 
         self.config = config
 
-        self.simulator = None
+        self.simulator = Simulator(**self.config)
         self.latest_step_duration = 0.0
 
         self.action_space = spaces.Tuple([spaces.Discrete(10) for _ in range(config['n_sats'])])
@@ -31,8 +32,7 @@ class SatelliteTasking(Env):
 
     def reset(self, seed=None, options=None):
 
-        if self.simulator is not None:
-            del self.simulator
+       
         
         seed = None
         if seed is None:
@@ -41,19 +41,17 @@ class SatelliteTasking(Env):
         super().reset(seed=seed)
         np.random.seed(seed)
 
-        self.simulator = Simulator(**self.config)
+        observations, info = self.simulator.reset()
 
         self.latest_step_duration = 0.0
 
-        observations = self.simulator.get_obs()
-
-        return observations, {}
+        return observations, info
 
     def step(self, actions):
 
-        next_obs, reward, task_being_collected = self.simulator.step(actions)
+        next_obs, reward, info = self.simulator.step(actions)
 
-        return next_obs, reward, self.simulator.done, False, {'task_being_collected': task_being_collected} 
+        return next_obs, reward, self.simulator.done, False, info
 
 
     def render(self) -> None:  # pragma: no cover
@@ -77,6 +75,9 @@ def main(config):
     total_reward = 0
 
     step = 0
+
+    start_time = time.time()   
+    time_steps = 2 
     while not done and not truncated:
         action = [0, 0, 0, 0]
         next_obs, reward, done, truncated, _ = env.step(action)
@@ -84,8 +85,12 @@ def main(config):
         obs = next_obs
         total_reward += reward
         step += 1
-        if step == 20:
-            break
+        if (step + 1) % time_steps == 0:
+            stop_time = time.time()
+            print(f"Avg Step time taken: {(stop_time - start_time) / time_steps}")
+            start_time = time.time()
+            next_obs, info = env.reset()
+            
 
 
 if __name__ == "__main__":

@@ -1,33 +1,29 @@
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 import json
-from collections import defaultdict
+
+import torch
 
 from ray.rllib.algorithms.ppo import PPOConfig
 import ray
 from pymap3d import ecef2geodetic
-
 from rl.config import parse_args, load_config
-from rl.data_callback import CustomDataCallbacks
+
 
 args = parse_args()
 name = args.name
 config = load_config(args.config)
 
+# Determine if GPU should be used
+use_gpu = config.get('use_gpu', False)
+num_gpus = 1 if use_gpu and torch.cuda.is_available() else 0
+
 import os
 ray.init(local_mode=True, _temp_dir=os.path.abspath(f"./logs/{name}"))
-
-
-
 from rl.gym import SatelliteTasking
 
-env_args = dict()
+config['env_runners']['num_env_runners'] = 0
 
-print(config['training_args'])
-print(type(config['training_args']))
-
-
-# Generic config.
 ppo_config = (
     PPOConfig()
     .training(**config['training_args'])
@@ -37,10 +33,9 @@ ppo_config = (
         env=SatelliteTasking,
         env_config=config['env'],
     )
-    .callbacks(CustomDataCallbacks)
     .framework("torch")
     .checkpointing(export_native_model_files=True)
-
+    .resources(num_gpus=num_gpus) 
 )
 
 ppo_config.model.update(
@@ -51,12 +46,11 @@ ppo_config.model.update(
 )
 
 algo = ppo_config.build()
-algo.restore("./logs/v1/")
+algo.restore("./logs/v2/")
 
 config['env']['time_limit'] = 100000
 
 env = SatelliteTasking(config['env'])
-
 
 obs, info = env.reset()
 
@@ -65,16 +59,14 @@ truncated = False
 total_reward = 0
 steps = 0
 
-
 def ecef_to_latlon(x, y, z):
     lat, lon, alt = ecef2geodetic(x, y, z)
     return lat, lon
 
-
 def map_tasks(task):
     r_LP_P = task.r_LP_P
     lat, lon = ecef_to_latlon(r_LP_P[0], r_LP_P[1], r_LP_P[2])
-    return {'id': task.id, 'latitude': lat, 'longitude': lon, 'priority': task.priority, 'min_elev': task.min_elev}
+    return {'id': task.id, 'latitude': lat, 'longitude': lon, 'priority': task.priority, 'min_elev': task.min_elev, 'simultaneous_collects_required':task.simultaneous_collects_required}
     
 
 tasks = env.simulator.task_manager.tasks
@@ -88,7 +80,7 @@ data_per_step = []
 step = 0
 
 # while not done and not truncated:
-while step < 10:
+while step < 100:
     print("Getting action")
     # action = algo.compute_single_action(obs)
     action = [0] * config['env']['n_sats']
@@ -108,7 +100,8 @@ while step < 10:
         satellite_data[sat.id]['time'] = current_time
         satellite_data[sat.id]['latitude'] = lat
         satellite_data[sat.id]['longitude'] = lon
-        satellite_data[sat.id]['task_being_collected'] = map_tasks(info['task_being_collected'][sat.id]) if info['task_being_collected'][sat.id] is not None else None
+        satellite_data[sat.id]['task_being_collected'] = map_tasks(info[sat.id]['task']) if 'task' in info[sat.id] else None
+        satellite_data[sat.id]['task_reward'] = info[sat.id]['task_reward'] if 'task_reward' in info[sat.id] else 0
         satellite_data[sat.id]['actions'] = int(action[i])
         satellite_data[sat.id]['reward'] = reward
 
@@ -122,7 +115,7 @@ while step < 10:
 
 
 print(f"Total reward in test episode: {total_reward}")
-algo.stop()
+
 
 
     
@@ -154,4 +147,5 @@ with open('data.json', 'w') as f:
 
 print('Done')
 
+# algo.stop()
 ray.shutdown()
