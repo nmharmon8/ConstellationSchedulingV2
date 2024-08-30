@@ -5,8 +5,7 @@ import numpy as np
 from gymnasium import Env, spaces
 
 from rl.sim import Simulator
-# from rl.simple_sim import Simulator
-
+from rl.action_def import ActionDef
 
 class SatelliteTasking(Env):
 
@@ -18,12 +17,13 @@ class SatelliteTasking(Env):
     def __init__(self, config):
 
         self.config = config
+        self.action_def = ActionDef(config)
+        self.action_space = self.action_def.action_space
+        self.observation_space = spaces.Box(low=-1, high=1, shape=(config['n_sats'], config['n_access_windows'], len(config['observation_keys'])))
 
-        self.simulator = Simulator(**self.config)
+        self.simulator = Simulator(config, self.action_def)
         self.latest_step_duration = 0.0
 
-        self.action_space = spaces.Tuple([spaces.Discrete(10) for _ in range(config['n_sats'])])
-        self.observation_space = spaces.Box(low=-1, high=1, shape=(config['n_sats'], 5 * config['n_access_windows']))
 
     @property
     def cum_reward(self):
@@ -31,10 +31,6 @@ class SatelliteTasking(Env):
 
 
     def reset(self, seed=None, options=None):
-
-       
-        
-        seed = None
         if seed is None:
             seed = time_ns() % 2**32
 

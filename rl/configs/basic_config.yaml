@@ -4,8 +4,8 @@ use_gpu: true
 
 env_runners:
   sample_timeout_s: 1000000.0
-  num_env_runners: 8
-  num_cpus_per_env_runner: 2
+  num_env_runners: 24
+  num_cpus_per_env_runner: 1
 
 training:
   steps: 100000
@@ -23,18 +23,52 @@ training_args:
   clip_param: 0.2
   grad_clip: 0.5
 
+model:
+
+  feature_model:
+    n_embd: 128
+    n_head: 4
+    bias: False
+    dropout: 0.0
+    layers: 3
+
+  satellite_model:
+    n_embd: 512
+    n_head: 4
+    bias: False
+    dropout: 0.0
+    layers: 3
+
 
 env:
   sim_rate: 1.0
   max_step_duration: 200.0
   time_limit: 11400 # about 2 orbits
-  n_access_windows: 10
+  n_access_windows: &n_access_windows 10
   n_sats: 10
 
   n_trajectory_factor: 20
 
-  min_tasks: 100
-  max_tasks: 3000
+  min_tasks: 500
+  max_tasks: 500
 
-  max_sat_coordination: 3
+  max_sat_coordination: &max_sat_coordination 3
+
+  observation_keys: ['x', 'y', 'z', 'window_index', 'window_index_offset', 'priority', 'n_required_collects']
+  observation_defaults:
+    x: 0
+    y: 0
+    z: 0
+    window_index: 100
+    window_index_offset: 100
+    priority: -1
+    n_required_collects: 0
+  observation_normalization_terms:
+    x: 1
+    y: 1
+    z: 1
+    window_index: 100
+    window_index_offset: 100
+    priority: 1
+    n_required_collects: *max_sat_coordination
 

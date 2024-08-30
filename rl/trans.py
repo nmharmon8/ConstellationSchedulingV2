@@ -24,26 +24,27 @@ class LayerNorm(nn.Module):
 
 class SelfAttention(nn.Module):
 
-    def __init__(self, config, causal=True):
+    def __init__(self, n_embd, n_head, bias=False, causal=True, time_emd=True, dropout=0.0):
         super().__init__()
-        assert config.n_embd % config.n_head == 0
+        assert n_embd % n_head == 0
         self.causal = causal
-
-        self.query = nn.Linear(config.n_embd, config.n_embd, bias=config.bias)
-        self.key = nn.Linear(config.n_embd, config.n_embd, bias=config.bias)
-        self.value = nn.Linear(config.n_embd, config.n_embd, bias=config.bias)
+        self.time_emd = time_emd
+        self.query = nn.Linear(n_embd, n_embd, bias=bias)
+        self.key = nn.Linear(n_embd, n_embd, bias=bias)
+        self.value = nn.Linear(n_embd, n_embd, bias=bias)
 
         # output projection
-        self.out = nn.Linear(config.n_embd, config.n_embd, bias=config.bias)
-        # regularization
-        self.attn_dropout = nn.Dropout(config.dropout)
-        self.resid_dropout = nn.Dropout(config.dropout)
-        self.n_head = config.n_head
-        self.n_embd = config.n_embd
-        self.dropout = config.dropout
+        self.out = nn.Linear(n_embd, n_embd, bias=bias)
+
+        self.attn_dropout = nn.Dropout(dropout)
+        self.resid_dropout = nn.Dropout(dropout)
+        self.n_head = n_head
+        self.n_embd = n_embd
+        self.dropout = dropout
         self.flash = hasattr(torch.nn.functional, 'scaled_dot_product_attention')
             
-        self.rotary_emb = RotaryEmbedding(dim = config.n_embd//self.n_head)
+        if self.time_emd:
+            self.rotary_emb = RotaryEmbedding(dim = n_embd//n_head)
 
     def forward(self, x, kv_cache = None, T_q=None):
         B, _, C = x.size() # batch size, sequence length, embedding dimensionality (n_embd)
@@ -61,8 +62,9 @@ class SelfAttention(nn.Module):
             self.causal = False
 
         offset = T_q if T_q is not None else 0
-        q = self.rotary_emb.rotate_queries_or_keys(q, offset=offset)
-        k = self.rotary_emb.rotate_queries_or_keys(k)
+        if self.time_emd:
+            q = self.rotary_emb.rotate_queries_or_keys(q, offset=offset)
+            k = self.rotary_emb.rotate_queries_or_keys(k)
 
         y = torch.nn.functional.scaled_dot_product_attention(q, k, v, attn_mask=None, dropout_p=self.dropout if self.training else 0, is_causal=self.causal)
         y = y.transpose(1, 2).contiguous().view(B, -1, C) # re-assemble all head outputs side by side
@@ -82,30 +84,30 @@ class CrossAttention(nn.Module):
     sequence. In the language translation example, the condition sequence would be the 
     sentence in the original language that is being translated.
     """
-    def __init__(self, config, causal=True):
+    def __init__(self, n_embd, n_head, bias=False, causal=True, dropout=0.0):
         super().__init__()
-        assert config.n_embd % config.n_head == 0
+        assert n_embd % n_head == 0
 
         self.causal = causal
-        self.query = nn.Linear(config.n_embd, config.n_embd, bias=config.bias)
-        self.key = nn.Linear(config.n_embd, config.n_embd, bias=config.bias)
-        self.value = nn.Linear(config.n_embd, config.n_embd, bias=config.bias)
+        self.query = nn.Linear(n_embd, n_embd, bias=bias)
+        self.key = nn.Linear(n_embd, n_embd, bias=bias)
+        self.value = nn.Linear(n_embd, n_embd, bias=bias)
 
         # output projection
-        self.out = nn.Linear(config.n_embd, config.n_embd, bias=config.bias)
+        self.out = nn.Linear(n_embd, n_embd, bias=bias)
 
         # regularization
-        self.attn_dropout = nn.Dropout(config.dropout)
-        self.resid_dropout = nn.Dropout(config.dropout)
+        self.attn_dropout = nn.Dropout(dropout)
+        self.resid_dropout = nn.Dropout(dropout)
 
-        self.n_head = config.n_head
-        self.n_embd = config.n_embd
-        self.n_embd = config.n_embd
-        self.dropout = config.dropout
+        self.n_head = n_head
+        self.n_embd = n_embd
+        self.n_embd = n_embd
+        self.dropout = dropout
 
         self.flash = hasattr(torch.nn.functional, 'scaled_dot_product_attention')
 
-        self.rotary_emb = RotaryEmbedding(dim = config.n_embd//self.n_head)
+        self.rotary_emb = RotaryEmbedding(dim = n_embd//self.n_head)
 
     def forward(self, q, condition, kv_cache = None, T_q=None):
         
@@ -142,11 +144,11 @@ class CrossAttention(nn.Module):
 
 class MLP(nn.Module):
 
-    def __init__(self, config):
+    def __init__(self, n_embd, bias=False, dropout=0.0):
         super().__init__()
-        self.c_fc    = nn.Linear(config.n_embd, 4 * config.n_embd, bias=config.bias)
-        self.c_proj  = nn.Linear(4 * config.n_embd, config.n_embd, bias=config.bias)
-        self.dropout = nn.Dropout(config.dropout)
+        self.c_fc    = nn.Linear(n_embd, 4 * n_embd, bias=bias)
+        self.c_proj  = nn.Linear(4 * n_embd, n_embd, bias=bias)
+        self.dropout = nn.Dropout(dropout)
 
     def forward(self, x):
         x = self.c_fc(x)
@@ -157,12 +159,12 @@ class MLP(nn.Module):
 
 class Block(nn.Module):
 
-    def __init__(self, config, causal=True):
+    def __init__(self, n_embd, n_head, bias=False, causal=False, time_emd=True, dropout=0.0):
         super().__init__()
-        self.ln_1 = LayerNorm(config.n_embd, bias=config.bias)
-        self.attn = SelfAttention(config, causal=causal)
-        self.ln_2 = LayerNorm(config.n_embd, bias=config.bias)
-        self.mlp = MLP(config)
+        self.ln_1 = LayerNorm(n_embd, bias=bias)
+        self.attn = SelfAttention(n_embd, n_head, bias, causal, time_emd, dropout)
+        self.ln_2 = LayerNorm(n_embd, bias=bias)
+        self.mlp = MLP(n_embd, bias, dropout)
 
     def forward(self, x):
         x = x + self.attn(self.ln_1(x))
@@ -172,14 +174,14 @@ class Block(nn.Module):
 
 class CrossBlock(nn.Module):
 
-    def __init__(self, config, causal=True):
+    def __init__(self, n_embd, n_head, bias=False, causal=False, time_emd=True, dropout=0.0):
         super().__init__()
-        self.attn = SelfAttention(config, causal=causal)
-        self.attn_ln = LayerNorm(config.n_embd, bias=config.bias)
-        self.cross_ln = LayerNorm(config.n_embd, bias=config.bias)
-        self.cross_attn = CrossAttention(config, causal=False)
-        self.mpl_ln = LayerNorm(config.n_embd, bias=config.bias)
-        self.mlp = MLP(config)
+        self.attn = SelfAttention(n_embd, n_head, bias, causal, time_emd, dropout)
+        self.attn_ln = LayerNorm(n_embd, bias=bias)
+        self.cross_ln = LayerNorm(n_embd, bias=bias)
+        self.cross_attn = CrossAttention(n_embd, n_head, bias, causal, dropout)
+        self.mpl_ln = LayerNorm(n_embd, bias=bias)
+        self.mlp = MLP(n_embd, bias, dropout)
 
     def forward(self, x, condition, kv_cache=None, T=None):
         x = x + self.attn(self.attn_ln(x), kv_cache=kv_cache, T_q=T)

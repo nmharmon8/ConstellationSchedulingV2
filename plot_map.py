@@ -11,6 +11,7 @@ from matplotlib.patches import Rectangle
 from matplotlib.collections import PathCollection
 from matplotlib.path import Path
 import matplotlib.transforms as mtransforms
+from tqdm import tqdm
 
 # Load the JSON data
 with open('data.json', 'r') as file:
@@ -26,19 +27,32 @@ ax.add_feature(cfeature.COASTLINE)
 ax.add_feature(cfeature.BORDERS, linestyle=':')
 
 # Plot the targets
+# target_latitudes = [target['latitude'] for target in data['targets']]
+# target_longitudes = [target['longitude'] for target in data['targets']]
+# ax.scatter(target_longitudes, target_latitudes, transform=ccrs.Geodetic(), color='black', s=10, zorder=3, label='Targets')
+
+# Plot the targets
 target_latitudes = [target['latitude'] for target in data['targets']]
 target_longitudes = [target['longitude'] for target in data['targets']]
-ax.scatter(target_longitudes, target_latitudes, transform=ccrs.Geodetic(), color='black', s=10, zorder=3, label='Targets')
+targets_scatter = ax.scatter(target_longitudes, target_latitudes, transform=ccrs.Geodetic(), color='black', s=10, zorder=3, label='Targets')
 
 # Get satellite names from the data
 satellite_names = list(data['steps'][0].keys())
-satellite_colors = {sat: c for sat, c in zip(satellite_names, ['blue', 'green', 'purple'])}
+# satellite_colors = {sat: c for sat, c in zip(satellite_names, ['blue', 'green', 'purple'])}
+# We now have 100 + satellites so we need to assign colors
+num_satellites = len(satellite_names)
+colors = plt.cm.viridis(np.linspace(0, 1, num_satellites))
+satellite_colors = {sat: colors[i] for i, sat in enumerate(satellite_names)}
+
+
+
 
 # Prepare satellite data
 satellites = {sat: {'times': [], 'lats': [], 'lons': [], 'actions': [], 'task_being_collected': [], 'rewards': []} for sat in satellite_colors}
 
 # Add a new dictionary for rewards
 satellite_rewards = {sat: 0 for sat in satellite_colors}
+collected_targets = set()
 
 # Sort steps by time and extract satellite data
 sorted_steps = sorted(data['steps'], key=lambda x: list(x.values())[0]['time'])
@@ -86,10 +100,11 @@ for sat, data in satellites.items():
                 'rewards': data['rewards']
             }
 
+
 # Create scatter plots for each satellite
 scatters = {}
 for sat, color in satellite_colors.items():
-    scatter = ax.scatter([], [], transform=ccrs.Geodetic(), color=color, s=80, zorder=4, label=f'{sat.split("_")[0]} position')
+    scatter = ax.scatter([], [], transform=ccrs.Geodetic(), color=color, s=80, zorder=4)  # Removed label
     scatters[sat] = scatter
 
 # Set the extent of the map
@@ -112,66 +127,109 @@ reward_text = ax.text(0.02, 0.98, '',
                       verticalalignment='top', 
                       fontweight='bold', 
                       fontsize=14)
-def update(frame):
+
+# Add this after initializing collected_targets
+targets_being_collected = set()
+red_targets = set()
+
+
+def update(frame, pbar):
     imaging_boxes.set_paths([])
     reward_string = ""
+    current_targets_being_collected = set()
+
     for sat, scatter in scatters.items():
         if sat in interpolated_satellites:
             sat_data = interpolated_satellites[sat]
             scatter.set_offsets([[sat_data['lons'][frame], sat_data['lats'][frame]]])
             
-            # Check if we're at a step with action data
             step_index = int(frame * (len(sat_data['actions']) - 1) / (num_interpolation_points - 1))
             action = sat_data['actions'][step_index]
             
-            # Update reward
             if step_index < len(sat_data['rewards']):
                 satellite_rewards[sat] += sat_data['rewards'][step_index]
-            reward_string = f"Score {satellite_rewards[sat]:.2f}"
+            reward_string = f"Score {sum(satellite_rewards.values()):.2f}"
             
             if 0 <= action <= 9:
-                # target = sat_data['targets'][step_index][action]
                 task = sat_data['task_being_collected'][step_index]
 
-                if task is None:
-                    continue
-                
-                # Create imaging box
-                box_size = 10  # degrees
-                verts = [
-                    (task['longitude'] - box_size/2, task['latitude'] - box_size/2),
-                    (task['longitude'] + box_size/2, task['latitude'] - box_size/2),
-                    (task['longitude'] + box_size/2, task['latitude'] + box_size/2),
-                    (task['longitude'] - box_size/2, task['latitude'] + box_size/2),
-                    (task['longitude'] - box_size/2, task['latitude'] - box_size/2),
-                ]
-                codes = [Path.MOVETO] + [Path.LINETO]*3 + [Path.CLOSEPOLY]
-                path = Path(verts, codes)
-                imaging_boxes.set_paths(imaging_boxes.get_paths() + [path])
-                
-                # Draw or update line from satellite to target
-                if active_imaging_lines[sat] is None:
-                    line = ax.plot([sat_data['lons'][frame], task['longitude']], 
-                                   [sat_data['lats'][frame], task['latitude']], 
-                                   color='black', alpha=0.7, linewidth=4, linestyle=':', transform=ccrs.Geodetic())[0]
-                    active_imaging_lines[sat] = line
-                else:
-                    active_imaging_lines[sat].set_data([sat_data['lons'][frame], task['longitude']], 
-                                                       [sat_data['lats'][frame], task['latitude']])
-            else:
-                # Remove the line if the satellite is not imaging
-                if active_imaging_lines[sat] is not None:
-                    active_imaging_lines[sat].remove()
-                    active_imaging_lines[sat] = None
+                if task is not None:
+                    target_id = (task['longitude'], task['latitude'])
+                    current_targets_being_collected.add(target_id)
 
-    # Update reward text
+                    box_size = 10  # degrees
+                    verts = [
+                        (task['longitude'] - box_size/2, task['latitude'] - box_size/2),
+                        (task['longitude'] + box_size/2, task['latitude'] - box_size/2),
+                        (task['longitude'] + box_size/2, task['latitude'] + box_size/2),
+                        (task['longitude'] - box_size/2, task['latitude'] + box_size/2),
+                        (task['longitude'] - box_size/2, task['latitude'] - box_size/2),
+                    ]
+                    codes = [Path.MOVETO] + [Path.LINETO]*3 + [Path.CLOSEPOLY]
+                    path = Path(verts, codes)
+                    imaging_boxes.set_paths(imaging_boxes.get_paths() + [path])
+
+    # Update target colors and remove collected targets
+    current_targets = targets_scatter.get_offsets()
+    updated_targets = []
+    updated_colors = []
+    for target in current_targets:
+        target_tuple = tuple(target)
+        if target_tuple in current_targets_being_collected:
+            updated_targets.append(target)
+            updated_colors.append('red')
+        elif target_tuple not in collected_targets:
+            updated_targets.append(target)
+            updated_colors.append('black')
+        elif target_tuple in collected_targets and target_tuple not in current_targets_being_collected:
+            # Target has been collected and is no longer being collected, so we remove it
+            continue
+        
+    targets_scatter.set_offsets(updated_targets)
+    targets_scatter.set_facecolors(updated_colors)
+
+    # Update collected_targets
+    collected_targets.update(current_targets_being_collected)
+
     reward_text.set_text(reward_string)
 
-    return list(scatters.values()) + [imaging_boxes] + [line for line in active_imaging_lines.values() if line is not None] + [reward_text]
+    # Update the progress bar
+    pbar.update(1)
+
+    return list(scatters.values()) + [imaging_boxes] + [targets_scatter] + [reward_text]
+
+
+# # Create the animation
+# num_frames = num_interpolation_points
+# anim = FuncAnimation(fig, update, frames=num_frames, interval=50, blit=False)
+# # Show the animation
+# plt.show()
+
+# # Create the animation
+num_frames = num_interpolation_points
+
+num_frames = 100
+# anim = FuncAnimation(fig, update, frames=num_frames, interval=50, blit=False)
+
+# # Save the animation
+# anim.save('satellite_animation.mp4', fps=20, extra_args=['-vcodec', 'libx264'])
+
+# plt.close(fig)  # Close the figure to free up memory
+
+# print("Animation saved as 'satellite_animation.mp4'")
+
+# Create a progress bar
+pbar = tqdm(total=num_frames, desc="Generating animation")
 
 # Create the animation
-num_frames = num_interpolation_points
-anim = FuncAnimation(fig, update, frames=num_frames, interval=50, blit=False)
+anim = FuncAnimation(fig, update, frames=num_frames, interval=50, blit=False, fargs=(pbar,))
 
-# Show the animation
-plt.show()
+# Save the animation
+anim.save('satellite_animation.mp4', fps=20, extra_args=['-vcodec', 'libx264'])
+
+# Close the progress bar
+pbar.close()
+
+plt.close(fig)  # Close the figure to free up memory
+
+print("Animation saved as 'satellite_animation.mp4'")

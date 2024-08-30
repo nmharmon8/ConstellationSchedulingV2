@@ -10,7 +10,6 @@ from bsk_rl.utils.orbital import elevation
 
 from pymap3d import ecef2geodetic
 
-
 def ecef_to_latlon(x, y, z):
     lat, lon, alt = ecef2geodetic(x, y, z)
     return lat, lon, alt
@@ -113,12 +112,11 @@ class Task:
         return upcoming_windows
     
     
-    def get_observation(self, satellite, current_time, task_start_time):
-        window_index = int(task_start_time // self.max_step_duration)
+    def get_observation(self, satellite, current_time, window_index):
         current_index = int(current_time // self.max_step_duration)
         window_index_offset = window_index - current_index
 
-        
+        obs = {}
 
         if self.is_task_possible_in_window(satellite, window_index):
 
@@ -128,26 +126,174 @@ class Task:
             y = np.cos(np.radians(lat)) * np.sin(np.radians(lon))
             z = np.sin(np.radians(lat))
 
-            obs = np.array([window_index_offset / 100.0, self.priority, x, y, z])
-            return obs
-        return None
+            obs['x'] = x
+            obs['y'] = y
+            obs['z'] = z
+            obs['window_index'] = window_index
+            obs['window_index_offset'] = window_index_offset
+            obs['priority'] = self.priority
+            obs['n_required_collects'] = self.simultaneous_collects_required
+            obs['task_id'] = self.id
+            # obs = np.array([window_index_offset / 100.0, self.priority, x, y, z])
+            # return obs
+        
+        return obs
+    
+
+class Observation:
+
+    def __init__(self, current_time, current_tasks_by_sat, satellites, action_def, config):
+        self.current_time = current_time
+        self.satellites = satellites
+        self.current_tasks_by_sat = current_tasks_by_sat
+        self.action_def = action_def
+        self.config = config
+        self.n_access_windows = config['n_access_windows']
+        self._observation_dict = None
+        self._tasks = {}
+
+    def get_empty_observation(self):
+        return {k:self.config['observation_defaults'][k] for k in self.config['observation_keys']}
+
+    def get_observations_dict(self):
+        if self._observation_dict is None:
+            observation_by_sat = {}
+            for satellite in self.satellites:
+                observation_by_sat[satellite.id] = []
+                for window_index, task in self.current_tasks_by_sat[satellite.id]:
+                    self._tasks[task.id] = task 
+                    observation_by_sat[satellite.id].append(task.get_observation(satellite, self.current_time, window_index))
+                # Remove empty observations, which are empty dicts
+                observation_by_sat[satellite.id] = [obs for obs in observation_by_sat[satellite.id] if obs]
+
+                while len(observation_by_sat[satellite.id]) < self.n_access_windows:
+                    observation_by_sat[satellite.id].append(self.get_empty_observation())
+
+            for satellite in self.satellites:
+                observation_by_sat[satellite.id] = sorted(observation_by_sat[satellite.id], key=lambda x: (x['window_index_offset'], -1 * x['priority']))
+                observation_by_sat[satellite.id] = observation_by_sat[satellite.id][:self.n_access_windows]
+            self._observation_dict = observation_by_sat
+
+        return self._observation_dict
+
+    def get_observation_numpy(self):
+        obs_norm_terms = self.config['observation_normalization_terms']
+        all_observations = []
+        obs = self.get_observations_dict()
+        for satellite in self.satellites:
+            satellite_observations = []
+            for sat_obs in obs[satellite.id]:
+                satellite_observations.append([sat_obs[key] / obs_norm_terms[key] for key in self.config['observation_keys']])
+            all_observations.append(satellite_observations)
+        obs = np.stack(all_observations, axis=0)
+        return obs
+    
+    def action_to_task(self):
+        # sat_id -> action -> task
+        action_to_task = {}
+        obs_dict = self.get_observations_dict()
+        for sat_id in obs_dict:
+            action_to_task[sat_id] = {}
+            for action in self.action_def.get_action_type_indexs('collect'):
+                action_to_task[sat_id][action] = None
+                if action < len(obs_dict[sat_id]):
+                    if 'task_id' not in obs_dict[sat_id][action]:
+                        # Noop action
+                        continue
+                    task_id = obs_dict[sat_id][action]['task_id']
+                    action_to_task[sat_id][action] = self._tasks[task_id]
+        return action_to_task
+
+
+
 
 class TaskManager:
 
-    def __init__(self, min_tasks=300, max_tasks=3000, max_sat_coordination=3, max_step_duration=600.0, **kwargs):
-        self.max_step_duration = max_step_duration
-        self.max_sat_coordination = max_sat_coordination
+    def __init__(self, satellites, config, action_def):
+        self.config = config
+        self.max_step_duration = config['max_step_duration']
+        self.max_sat_coordination = config['max_sat_coordination']
+        self.n_access_windows = config['n_access_windows']
+
         self.window_calculation_time = 0
-        self.n_tasks = random.randint(min_tasks, max_tasks)
-        self.tasks = self.get_random_tasks(self.n_tasks)
         
-    def step(self):
+        self.action_def = action_def
+        self.current_tasks_by_sat = {}
+        self.satellites = satellites
+        self.n_tasks_collected = 0
+        self.cumlitive_reward = 0
+
+
+    def get_observations(self, current_time):
+        for sat in self.satellites:
+            self.calculate_access_windows(sat,  calculation_start=current_time, duration=self.max_step_duration * self.n_access_windows)
+
+        self.current_tasks_by_sat = {}
+        for satellite in self.satellites:
+            self.current_tasks_by_sat[satellite.id] = self.get_upcoming_tasks(satellite, current_time)
+        self.observation = Observation(current_time, self.current_tasks_by_sat, self.satellites, self.action_def, self.config)
+        return self.observation
+    
+
+    def reset(self):
+        self.n_tasks = random.randint(self.config['min_tasks'], self.config['max_tasks'])
+        self.tasks = self.get_random_tasks(self.n_tasks)
+        self.current_tasks_by_sat = {}
+        observations = self.get_observations(0.0)
+        self.n_tasks_collected = 0
+        self.cumlitive_reward = 0
+        return observations, {}
+
+        
+    def step(self, actions, start_time, end_time):
+
+        info = {sat.id: {} for sat in self.satellites}
+        task_being_collected = {}
+
         reward = 0
+
+        action_to_task = self.observation.action_to_task()
+
+        for satellite, action in zip(self.satellites, actions):
+            if action not in action_to_task[satellite.id]:
+                #Noop action
+                continue
+            task = action_to_task[satellite.id][action]
+            if task is None:
+                continue
+            task.collect(satellite, start_time, end_time)
+            task_being_collected[satellite.id] = task
+
+
+        for satellite, action in zip(self.satellites, actions):
+            if action not in action_to_task[satellite.id]:
+                info[satellite.id]['task'] = None
+                info[satellite.id]['task_reward'] = 0
+                continue
+            task = action_to_task[satellite.id][action]
+            if task is None:
+                info[satellite.id]['task'] = None
+                info[satellite.id]['task_reward'] = 0
+                continue
+            info[satellite.id]['task'] = task
+            info[satellite.id]['task_reward'] = task.get_reward()
+
         for task in self.tasks:
             reward += task.step()
+
+        self.cumlitive_reward += reward
+        self.n_tasks_collected += sum(int(task.successful_collected) for task in self.tasks)
+
         # Remove tasks that have been collected
         self.tasks = [task for task in self.tasks if not task.successful_collected]
-        return reward
+
+        observations = self.get_observations(end_time)
+
+        info['cum_reward'] = self.cumlitive_reward
+        info['n_tasks_collected'] = self.n_tasks_collected
+
+        return observations, reward, info
+
 
     def get_random_tasks(self, n_targets, radius=orbitalMotion.REQ_EARTH * 1e3):
         tasks = []
@@ -168,9 +314,7 @@ class TaskManager:
         for task in self.tasks:
             windows = task.get_upcoming_windows(satellite, current_time)
             for window_index in windows:
-                upcoming_tasks.append((window_index * self.max_step_duration, task))
-        upcoming_tasks.sort(key=lambda x: x[0])
-        print(f"Number of upcoming tasks: {len(upcoming_tasks)} for sat {satellite.id} for time {current_time}")
+                upcoming_tasks.append((window_index, task))
         return upcoming_tasks
             
 
