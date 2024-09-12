@@ -8,7 +8,7 @@ from bsk_rl.utils.orbital import random_orbit
 from tqdm import tqdm
 
 from rl.sat import Satellite, sat_args
-from rl.task import TaskManager
+from rl.tasks.task_manager import TaskManager
 
 class Simulator():
 

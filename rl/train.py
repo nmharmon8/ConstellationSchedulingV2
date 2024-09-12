@@ -56,7 +56,7 @@ checkpoint_config = CheckpointConfig(
     num_to_keep=3,
     checkpoint_score_attribute="episode_reward_mean",
     checkpoint_score_order="max",
-    checkpoint_frequency=1000,
+    checkpoint_frequency=100,
 )
 
 storage_path = f"/data/nm/{name}"
@@ -66,25 +66,3 @@ results = tune.Tuner(
     run_config=air.RunConfig(stop=stop, verbose=1, checkpoint_config=checkpoint_config, storage_path=storage_path),
     param_space=ppo_config,
 ).fit()
-
-# algo = ppo_config.build()
-# # algo.restore(f"./logs/v9/")
-
-# for i in range(config['training']['steps']):
-#     result = algo.train()
-    
-#     # print((result))
-#     print(f"Step {i} done")
-#     save_result = algo.save(checkpoint_dir=f"./logs/{name}")
-#     path_to_checkpoint = save_result.checkpoint.path
-#     print(
-#         "An Algorithm checkpoint has been created inside directory: "
-#         f"'{path_to_checkpoint}'."
-#     )
-
-# algo.stop()
-# ray.shutdown()
-# python -m rl.train --config=rl/configs/basic_config.yaml --name=v11_test_restore_v9
-
-
-# Last Train PPO_SatelliteTasking_2024-08-13_09-56-48raiz8pnw

@@ -1,5 +1,5 @@
 
-local_mode: false # I think reduces to single process, for debugging
+local_mode: False # I think reduces to single process, for debugging
 use_gpu: true
 
 env_runners:
@@ -12,7 +12,7 @@ training:
 
 training_args:
   lr: 0.00003
-  gamma: 0.0
+  gamma: 0.5
   train_batch_size: 128
   sgd_minibatch_size: 32 # Default is 128
   num_sgd_iter: 8 # Default is 30
@@ -42,7 +42,7 @@ model:
 
 env:
   sim_rate: 1.0
-  max_step_duration: 200.0
+  max_step_duration: &max_step_duration 200.0
   time_limit: 11400 # about 2 orbits
   n_access_windows: &n_access_windows 10
   n_sats: 10
@@ -53,22 +53,67 @@ env:
   max_tasks: 500
 
   max_sat_coordination: &max_sat_coordination 3
+  task_min_storage_size: 100
+  task_max_storage_size: &task_max_storage_size 1000
+  task_min_duration: 30
+  task_max_duration: *max_step_duration
+  task_min_elev: 0.7853981633974483 # 45 degrees in radians
 
-  observation_keys: ['x', 'y', 'z', 'window_index', 'window_index_offset', 'priority', 'n_required_collects']
+  
+
+  observation_keys: ['x', 'y', 'z', 'window_index_offset', 'priority', 'n_required_collects', 'is_data_downlink', 'task_storage_size', 'storage_level', 'storage_capacity', 'storage_percentage']
   observation_defaults:
     x: 0
     y: 0
     z: 0
-    window_index: 100
-    window_index_offset: 100
+    window_index_offset: 200
     priority: -1
     n_required_collects: 0
+    is_data_downlink: 0
+    storage_level: 0
+    storage_capacity: 0
+    storage_percentage: 0
+    task_storage_size: 0
   observation_normalization_terms:
     x: 1
     y: 1
     z: 1
-    window_index: 100
-    window_index_offset: 100
+    window_index_offset: 200
     priority: 1
     n_required_collects: *max_sat_coordination
+    is_data_downlink: 1
+    storage_level: 5000
+    storage_capacity: 5000
+    storage_percentage: 1.0
+    task_storage_size: *task_max_storage_size
+  groundStations:
+    - name: Boulder
+      lat: 40.009971
+      long: -105.243895
+      elev: 1624
+    - name: Merritt
+      lat: 28.3181
+      long: -80.666
+      elev: 0.9144
+    - name: Singapore
+      lat: 1.3521
+      long: 103.8198
+      elev: 15
+    - name: Weilheim
+      lat: 47.8407
+      long: 11.1421
+      elev: 563
+    - name: Santiago
+      lat: -33.4489
+      long: -70.6693
+      elev: 570
+    - name: Dongara
+      lat: -29.2452
+      long: 114.9326
+      elev: 34
+    - name: Hawaii
+      lat: 19.8968
+      long: -155.5828
+      elev: 9
+
 

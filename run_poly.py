@@ -73,8 +73,6 @@ def run_policy(config, model_name, steps, output, greedy=False):
     print(f"Restoring from {checkpoint}")
     algo.restore(checkpoint)
 
-    exit()
-
     # config['env']['time_limit'] = 100000
     config['env']['min_tasks'] = 500
     config['env']['max_tasks'] = 500
@@ -91,10 +89,19 @@ def run_policy(config, model_name, steps, output, greedy=False):
     def map_tasks(task):
         r_LP_P = task.r_LP_P
         lat, lon = ecef_to_latlon(r_LP_P[0], r_LP_P[1], r_LP_P[2])
-        return {'id': task.id, 'latitude': lat, 'longitude': lon, 'priority': task.priority, 'min_elev': task.min_elev, 'simultaneous_collects_required':task.simultaneous_collects_required}
+        return {
+            'id': task.id, 
+            'latitude': lat, 
+            'longitude': lon, 
+            'priority': task.priority, 
+            'min_elev': task.min_elev, 
+            'simultaneous_collects_required':task.simultaneous_collects_required,
+            'storage_size': task.storage_size,
+            'is_data_downlink': bool(task.is_data_downlink) 
+        }
 
     tasks = env.simulator.task_manager.tasks
-    tasks = [map_tasks(task) for task in tasks]
+    tasks = [task.task_info() for task in tasks]
     data_per_step = []
 
     done = False
@@ -122,16 +129,19 @@ def run_policy(config, model_name, steps, output, greedy=False):
         for i, sat in enumerate(env.simulator.satellites):
             r_BP_P = sat.trajectory.r_BP_P(current_time)
             lat, lon = ecef_to_latlon(r_BP_P[0], r_BP_P[1], r_BP_P[2])
-            satellite_data[sat.id] = {}
+            satellite_data[sat.id] = info[sat.id]
             satellite_data[sat.id]['time'] = current_time
             satellite_data[sat.id]['latitude'] = lat
             satellite_data[sat.id]['longitude'] = lon
-            satellite_data[sat.id]['task_being_collected'] = map_tasks(info[sat.id]['task']) if info[sat.id]['task'] else None
+            satellite_data[sat.id]['task_being_collected'] = info[sat.id]['task'] # map_tasks(info[sat.id]['task']) if info[sat.id]['task'] else None
             satellite_data[sat.id]['task_reward'] = info[sat.id]['task_reward'] if 'task_reward' in info[sat.id] else 0
             satellite_data[sat.id]['actions'] = int(action[i])
             satellite_data[sat.id]['action_type'] = action_def.get_action_type(action[i])
             satellite_data[sat.id]['reward'] = reward
             satellite_data[sat.id]['observation'] = info['observation'][sat.id]
+            # satellite_data[sat.id]['storage_level'] = sat.storage_level
+            # satellite_data[sat.id]['storage_capacity'] = sat.storage_capacity
+            # satellite_data[sat.id]['storage_percentage'] = sat.storage_level / sat.storage_capacity
 
         step_data = {
             'step': step,
@@ -145,10 +155,30 @@ def run_policy(config, model_name, steps, output, greedy=False):
         total_reward += reward
 
     json_data = {}
-    json_data['targets'] = tasks
+    json_data['tasks'] = tasks
     json_data['steps'] = data_per_step
 
     print(json_data)
+
+    # # Find any non JSON serializable objects and warn the user
+    # def find_non_serializable_objects(data, keys=[]):
+    #     if isinstance(data, dict):
+    #         for key, value in data.items():
+    #             find_non_serializable_objects(value, keys + [key])
+    #     elif isinstance(data, list):
+    #         for item in data:
+    #             find_non_serializable_objects(item, keys)
+    #     else:
+    #         # Test if data is serializable
+    #         try:
+    #             json.dumps({'test': data})
+    #         except:
+    #             print(f"Warning: {data} is not JSON serializable")
+    #             print(f"Keys: {keys}")
+
+
+    # find_non_serializable_objects(json_data)
+    
     print('Saving data to file')
     with open(output, 'w') as f:
         json.dump(json_data, f, indent=2)
@@ -184,5 +214,5 @@ if __name__ == "__main__":
 
 
 """
-python run_poly.py --config=rl/configs/basic_config.yaml --model=v16_10sat
+python run_poly.py --config=rl/configs/basic_config.yaml --model=v38_storage
 """

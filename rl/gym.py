@@ -2,10 +2,18 @@ from time import time_ns
 import time
 
 import numpy as np
+import random
 from gymnasium import Env, spaces
 
 from rl.sim import Simulator
 from rl.action_def import ActionDef
+
+def set_seeds(seed):
+    from numpy import random as np_random
+    np_random.seed(seed)
+    import random
+    random.seed(seed)
+
 
 class SatelliteTasking(Env):
 
@@ -15,6 +23,19 @@ class SatelliteTasking(Env):
 
 
     def __init__(self, config):
+
+        try:
+            self.worker_idx = config.worker_index  # <- but you can also use the worker index
+            self.num_workers = config.num_workers  # <- or the total number of workers
+            self.vector_env_index = config.vector_index
+        except:
+            self.worker_idx = 0
+            self.num_workers = 1
+            self.vector_env_index = 0
+
+        self.seed = self.worker_idx + self.vector_env_index * self.num_workers
+        set_seeds(self.seed)
+
 
         self.config = config
         self.action_def = ActionDef(config)
@@ -31,12 +52,19 @@ class SatelliteTasking(Env):
 
 
     def reset(self, seed=None, options=None):
-        if seed is None:
-            seed = time_ns() % 2**32
 
-        super().reset(seed=seed)
-        np.random.seed(seed)
+        # print("Input seed: ", seed)
+        
+        # if seed is None:
+        #     seed = time_ns() % 2**32 + self.seed
 
+        # print(f"Resetting seed: {seed} worker_idx: {self.worker_idx} vector_env_index: {self.vector_env_index} num_workers: {self.num_workers}")
+
+        # super().reset(seed=seed)
+        # np.random.seed(seed)
+        # random.seed(seed)
+
+        self.simulator = Simulator(self.config, self.action_def)
         observations, info = self.simulator.reset()
 
         self.latest_step_duration = 0.0
@@ -73,8 +101,11 @@ def main(config):
     step = 0
 
     start_time = time.time()   
-    time_steps = 2 
-    while not done and not truncated:
+    time_steps = 200
+    while True:
+
+        # if not done and not truncated:
+        #     obs, info = env.reset()
         action = [0, 0, 0, 0]
         next_obs, reward, done, truncated, _ = env.step(action)
         # print(f"Obs: {obs}, Action: {action}, Reward: {reward} Done: {done} Truncated: {truncated}")
@@ -93,4 +124,9 @@ if __name__ == "__main__":
     from rl.config import parse_args, load_config
     args = parse_args()
     config = load_config(args.config)
+
+    # Inject worker_index, num_workers, and vector_index into the config as properties
+    
+
+
     main(config)

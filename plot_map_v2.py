@@ -108,7 +108,7 @@ class SatelliteVisualization:
         return fig, ax
 
     def prepare_satellite_data(self):
-        satellite_names = list(self.data['steps'][0].keys())
+        satellite_names = list(self.data['steps'][0]['satellites'].keys())
         colors = plt.cm.viridis(np.linspace(0, 1, len(satellite_names)))
         return {sat: {'color': colors[i], 'data': self.extract_satellite_data(sat)} 
                 for i, sat in enumerate(satellite_names)}
@@ -121,88 +121,100 @@ class SatelliteVisualization:
 
     def prepare_target_data(self):
         targets = Targets(self.ax)
-        for target in self.data['targets']:
+        for target in self.data['tasks']:
             targets.add_target(target['id'], target['latitude'], target['longitude'], target['simultaneous_collects_required'])
         return targets
+    
+
+    def repeat_interpolation_points(self, data, num_interpolation_points):
+        '''
+        If data is [1, 2, 3] and num_interpolation_points is 9, then
+        the result will be [1, 1, 1, 2, 2, 2, 3, 3, 3]
+        '''
+        repeated_data = []
+        repeat_count = num_interpolation_points // len(data)
+        remainder = num_interpolation_points % len(data)
+        
+        for value in data:
+            repeated_data.extend([value] * repeat_count)
+        
+        # Add any remaining points to maintain the exact number of interpolation points
+        repeated_data.extend([data[-1]] * remainder)
+
+        return repeated_data
+
+
+    def interpolate_lat_lon(self, lats, lons, times, num_interpolation_points):
+        lats = np.array(lats)
+        lons = np.array(lons)
+        times = np.array(times)
+
+        lon_diff = np.diff(lons)
+        lon_diff[lon_diff > 180] -= 360
+        lon_diff[lon_diff < -180] += 360
+        unwrapped_lons = np.concatenate(([lons[0]], lons[0] + np.cumsum(lon_diff)))
+
+        # Create interpolation functions
+        lat_interp = interpolate.interp1d(times, lats, kind='linear')
+        lon_interp = interpolate.interp1d(times, unwrapped_lons, kind='linear')
+
+        # Generate interpolated points
+        interp_times = np.linspace(times.min(), times.max(), num_interpolation_points)
+        interp_lats = lat_interp(interp_times)
+        interp_lons = lon_interp(interp_times) % 360
+        interp_lons = np.where(interp_lons > 180, interp_lons - 360, interp_lons)
+
+        return interp_lats, interp_lons
+        
+
 
     def interpolate_satellite_positions(self, num_interpolation_points):
-        interpolated = {}
-        sorted_steps = sorted(self.data['steps'], key=lambda x: list(x.values())[0]['time'])
-        num_interpolation_points = len(sorted_steps) * num_interpolation_points
 
-        for sat, sat_data in self.satellites.items():
-            self.populate_satellite_data(sat, sorted_steps)
-            times = np.array(sat_data['data']['times'])
-            lats = np.array(sat_data['data']['lats'])
-            lons = np.array(sat_data['data']['lons'])
+        flat_keys = ['step', 'cum_reward', 'n_tasks_collected']
+        nested_keys = ['satellites']
 
-            if len(times) > 1:
-                # Handle longitude wrap-around
-                lon_diff = np.diff(lons)
-                lon_diff[lon_diff > 180] -= 360
-                lon_diff[lon_diff < -180] += 360
-                unwrapped_lons = np.concatenate(([lons[0]], lons[0] + np.cumsum(lon_diff)))
+        satellite_data = {}
+        for step in self.data['steps']:
+            for flat_key in flat_keys:
+                if flat_key not in satellite_data:
+                    satellite_data[flat_key] = []
+                satellite_data[flat_key].append(step[flat_key])
+            for nested_key in nested_keys:
+                if nested_key not in satellite_data:
+                    satellite_data[nested_key] = {}
+                for key, v in step[nested_key].items():
+                    if key not in satellite_data[nested_key]:
+                        satellite_data[nested_key][key] = {'data': []}
+                    satellite_data[nested_key][key]['data'].append(v)
 
-                # Create interpolation functions
-                lat_interp = interpolate.interp1d(times, lats, kind='linear')
-                lon_interp = interpolate.interp1d(times, unwrapped_lons, kind='linear')
 
-                # Generate interpolated points
-                interp_times = np.linspace(times.min(), times.max(), num_interpolation_points)
-                interp_lats = lat_interp(interp_times)
-                interp_lons = lon_interp(interp_times) % 360
-                interp_lons = np.where(interp_lons > 180, interp_lons - 360, interp_lons)
 
-                interpolated[sat] = {
-                    'times': interp_times,
-                    'lats': interp_lats,
-                    'lons': interp_lons,
-                    'actions': sat_data['data']['actions'],
-                    'task_being_collected': sat_data['data']['task_being_collected'],
-                    'task_reward': sat_data['data']['task_reward'],
-                    'rewards': sat_data['data']['rewards']
-                }
+        # Pull out lat/lon data
+        for sat_id in list(satellite_data['satellites'].keys()):
+            sat_data = satellite_data['satellites'][sat_id]['data']
+            satellite_data['satellites'][sat_id]['lats'] = [x['latitude'] for x in sat_data]
+            satellite_data['satellites'][sat_id]['lons'] = [x['longitude'] for x in sat_data]
 
-        return interpolated
+        num_interpolation_points = len(satellite_data['step']) * num_interpolation_points
 
-    def populate_satellite_data(self, satellite, steps):
-        for step in steps:
-            if satellite in step:
-                sat_step = step[satellite]
-                self.satellites[satellite]['data']['times'].append(sat_step['time'])
-                self.satellites[satellite]['data']['lats'].append(sat_step['latitude'])
-                self.satellites[satellite]['data']['lons'].append(sat_step['longitude'])
-                self.satellites[satellite]['data']['actions'].append(sat_step['actions'])
-                self.satellites[satellite]['data']['task_being_collected'].append(sat_step['task_being_collected'])
-                self.satellites[satellite]['data']['rewards'].append(sat_step['reward'])
-                self.satellites[satellite]['data']['task_reward'].append(sat_step['task_reward'])
+        for flat_key in flat_keys:
+            satellite_data[flat_key] = self.repeat_interpolation_points(satellite_data[flat_key], num_interpolation_points)
 
-    def interpolate_satellite(self, sat_data, num_points):
-        times, lats, lons = map(np.array, [sat_data['times'], sat_data['lats'], sat_data['lons']])
-        unique_times, unique_indices = np.unique(times, return_index=True)
+        for sat_id in list(satellite_data['satellites'].keys()):
+            sat_data = satellite_data['satellites'][sat_id]
+            times = [x['time'] for x in sat_data['data']]
+            satellite_data['satellites'][sat_id]['lats'], satellite_data['satellites'][sat_id]['lons'] = self.interpolate_lat_lon(sat_data['lats'], sat_data['lons'], times, num_interpolation_points)
+            satellite_data['satellites'][sat_id]['data'] = self.repeat_interpolation_points(sat_data['data'], num_interpolation_points)
+
+        for sat_id in list(satellite_data['satellites'].keys()):
+            sat_data = satellite_data['satellites'][sat_id]['data']
+            satellite_data['satellites'][sat_id]['actions'] = [x['actions'] for x in sat_data]
+            satellite_data['satellites'][sat_id]['action_type'] = [x['action_type'] for x in sat_data]
         
-        if len(unique_times) > 1:
-            lat_interp = interpolate.interp1d(unique_times, lats[unique_indices], kind='linear')
-            lon_interp = interpolate.interp1d(unique_times, lons[unique_indices], kind='linear')
-            
-            interp_times = np.linspace(unique_times.min(), unique_times.max(), num_points)
-            return {
-                'times': interp_times,
-                'lats': lat_interp(interp_times),
-                'lons': lon_interp(interp_times),
-                'actions': sat_data['actions'],
-                'task_being_collected': sat_data['task_being_collected'],
-                'rewards': sat_data['rewards']
-            }
-        return None
+        return satellite_data
+
 
     def setup_visualization(self):
-        markers = ['o', 's', '^']  # circle for 1, square for 2, triangle for 3+
-        # self.target_scatters = [
-        #     self.ax.scatter([], [], transform=ccrs.Geodetic(), color='black', s=10, zorder=3, 
-        #                     marker=markers[min(collects-1, 2)], label=f'{collects} Collect{"s" if collects > 1 else ""}')
-        #     for collects in range(1, 4)
-        # ]
         self.targets.reset_scatters()
         self.satellite_scatters = {sat: self.ax.scatter([], [], transform=ccrs.Geodetic(), 
                                                         color=data['color'], s=80, zorder=4) 
@@ -221,11 +233,15 @@ class SatelliteVisualization:
             line.remove()
         self.collection_lines.clear()
 
-        for sat, sat_data in self.interpolated_satellites.items():
-            step_index = int(frame * (len(sat_data['actions']) - 1) / (len(sat_data['times']) - 1))
-            action = sat_data['actions'][step_index]
-            if 0 <= action <= 9:
-                task = sat_data['task_being_collected'][step_index]
+        # for sat, sat_data in self.interpolated_satellites.items():
+        for sat in self.interpolated_satellites['satellites'].keys():
+            sat_data = self.interpolated_satellites['satellites'][sat]
+            frame_data = self.interpolated_satellites['satellites'][sat]['data'][frame]
+
+            action = frame_data['actions']
+            action_type = frame_data['action_type']
+            if action_type == 'collect':
+                task = frame_data['task_being_collected']
                 if task:
                     sat_lon, sat_lat = sat_data['lons'][frame], sat_data['lats'][frame]
                     target_lon, target_lat = task['longitude'], task['latitude']
@@ -236,29 +252,38 @@ class SatelliteVisualization:
         return self.collection_lines
 
     def update(self, frame):
-        self.imaging_boxes.set_paths([])
-        total_reward = 0
 
+        start = time.time()
+
+        self.imaging_boxes.set_paths([])
         self.targets.render()
 
-        for sat, scatter in self.satellite_scatters.items():
-            if sat in self.interpolated_satellites:
-                sat_data = self.interpolated_satellites[sat]
-                scatter.set_offsets([[sat_data['lons'][frame], sat_data['lats'][frame]]])
-                
-                step_index = int(frame * (len(sat_data['actions']) - 1) / (len(sat_data['times']) - 1))
-                action = sat_data['actions'][step_index]
-                
-                if step_index < len(sat_data['rewards']):
-                    total_reward += sat_data['rewards'][step_index]
-                
-                if 0 <= action <= 9:
-                    task = sat_data['task_being_collected'][step_index]
-                    if task:
-                        self.targets.get_target(task['id']).set_collecting(sat_data['task_reward'][step_index])
-                        self.add_imaging_box(task['longitude'], task['latitude'])
+        cum_reward = 0
+        task_completed = 0
+        step = 0
 
-        self.reward_text.set_text(f"Score {total_reward:.2f}")
+        for sat, scatter in self.satellite_scatters.items():
+
+            if sat in self.interpolated_satellites['satellites']:
+                sat_data = self.interpolated_satellites['satellites'][sat]
+                sat_frame_data = sat_data['data'][frame]
+                scatter.set_offsets([[sat_data['lons'][frame], sat_data['lats'][frame]]])
+                cum_reward = self.interpolated_satellites['cum_reward'][frame]
+                task_completed = self.interpolated_satellites['n_tasks_collected'][frame]
+                step = self.interpolated_satellites['step'][frame]
+                action = sat_frame_data['actions']
+                action_type = sat_frame_data['action_type']
+                
+                
+                if action_type == 'collect':
+                    task = sat_frame_data['task_being_collected']
+                    if task:
+                        self.targets.get_target(task['id']).set_collecting(sat_frame_data['task_reward'])
+                        self.add_imaging_box(task['longitude'], task['latitude'])
+                else:
+                    print(f"Got action: {action} noop")
+
+        self.reward_text.set_text(f"Score {cum_reward:.2f} Task Completed: {task_completed} Step: {step}")
 
         artists = (list(self.satellite_scatters.values()) + 
                [self.imaging_boxes] + 
@@ -267,6 +292,9 @@ class SatelliteVisualization:
 
         if self.draw_lines:
             artists += self.draw_collection_lines(frame)
+
+        stop = time.time()
+        print(f"Update time: {stop - start:.2f} seconds")
 
         return artists
 
@@ -282,24 +310,19 @@ class SatelliteVisualization:
         path = Path(verts, [Path.MOVETO] + [Path.LINETO]*3 + [Path.CLOSEPOLY])
         self.imaging_boxes.set_paths(self.imaging_boxes.get_paths() + [path])
 
-    # def update_targets(self, current_targets_being_collected):
-        
-    #     for i, scatter in enumerate(self.target_scatters):
-    #         scatter.set_offsets(updated_targets[i])
-    #         scatter.set_facecolors(updated_colors[i])
-
     def create_animation(self):
-        num_frames = len(next(iter(self.interpolated_satellites.values()))['times'])
+        num_frames = len(self.interpolated_satellites['step'])
         return FuncAnimation(self.fig, self.update, frames=num_frames, interval=50, blit=True)
 
     def save_animation(self, filename='satellite_animation.mp4'):
-        num_frames = len(next(iter(self.interpolated_satellites.values()))['times'])
+        num_frames = len(self.interpolated_satellites['step'])
         fps = 20
         duration = num_frames / fps
         
         print(f"Rendering animation: {num_frames} frames, {duration:.2f} seconds at {fps} fps")
         
         anim = self.create_animation()
+
         
         start_time = time.time()
         with tqdm(total=num_frames, desc="Generating animation", unit="frame") as pbar:
@@ -342,7 +365,9 @@ def parse_arguments():
 def main():
     args = parse_arguments()
     
+
     vis = SatelliteVisualization(args.input_file, draw_lines=args.draw_lines, interpolation_points=args.interpolation_points)
+
     
     if args.show:
         vis.show_animation()

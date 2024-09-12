@@ -23,9 +23,9 @@ from torch.utils.tensorboard import SummaryWriter
 
 from bsk_rl import data, scene
 from bsk_rl.utils.rllib import unpack_config
-from model import SatModel
+# from model import SatModel
 from bsk_rl import GeneralSatelliteTasking 
-from sats import get_sats
+# from sats import get_sats
 
 from ray.rllib.algorithms.ppo import PPOConfig
 
@@ -165,8 +165,8 @@ if __name__ == "__main__":
             act.Downlink(duration=60.0),
             act.Desat(duration=60.0),
         ]
-        # dyn_type = dyn.FullFeaturedDynModel
-        dyn_type = ScanningDownlinkDynModel
+        dyn_type = dyn.FullFeaturedDynModel
+        # dyn_type = ScanningDownlinkDynModel
         fsw_type = fsw.SteeringImagerFSWModel
 
 
@@ -235,6 +235,12 @@ if __name__ == "__main__":
         clip_param=0.1,
         grad_clip=0.5,
     )
+
+    env = unpack_config(GeneralSatelliteTasking)(env_args)
+    print(env._minimum_world_model())
+    print(env.world_type.default_world_args())
+    print(env.world_type.default_world_args(**env.world_type.default_world_args()))
+    exit()
 
     # Generic config.
     config = (
