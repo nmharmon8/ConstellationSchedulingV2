@@ -66,3 +66,7 @@ results = tune.Tuner(
     run_config=air.RunConfig(stop=stop, verbose=1, checkpoint_config=checkpoint_config, storage_path=storage_path),
     param_space=ppo_config,
 ).fit()
+
+"""
+python -m rl.train --config=rl/configs/basic_config.yaml --name=v43_storage
+"""

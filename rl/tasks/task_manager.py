@@ -25,6 +25,8 @@ class TaskManager:
         self.n_tasks_collected = 0
         self.cumlitive_reward = 0
 
+        self.action_index_to_sat = {i:sat for i, sat in enumerate(satellites)}
+
 
     def get_observations(self, current_time):
         for sat in self.satellites:
@@ -33,7 +35,7 @@ class TaskManager:
         self.current_tasks_by_sat = {}
         for satellite in self.satellites:
             self.current_tasks_by_sat[satellite.id] = self.get_upcoming_tasks(satellite, current_time)
-        self.observation = Observations(current_time, self.current_tasks_by_sat, self.satellites, self.action_def, self.config)
+        self.observation = Observations(current_time, self.current_tasks_by_sat, self.satellites, self.action_def, self.config, self.action_index_to_sat)
         return self.observation
     
 
@@ -44,22 +46,27 @@ class TaskManager:
         observations = self.get_observations(0.0)
         self.n_tasks_collected = 0
         self.cumlitive_reward = 0
-        return observations, {}
+        return observations, {
+            'action_index_to_sat': {i:sat.id for i, sat in self.action_index_to_sat.items()},
+        }
 
-        
     def step(self, actions, start_time, end_time):
         info = {sat.id: sat.get_observation() for sat in self.satellites}
+        info['action_index_to_sat'] = {i:sat.id for i, sat in self.action_index_to_sat.items()}
+
         reward = 0
         action_to_task = self.observation.action_to_task()
 
-        for satellite, action in zip(self.satellites, actions):
-            task = action_to_task[satellite.id][action]
-            task.collect(satellite, start_time, end_time)
+        for i, action in enumerate(actions):
+            sat = self.action_index_to_sat[i]
+            task = action_to_task[sat.id][action]
+            task.collect(sat, start_time, end_time)
 
-        for satellite, action in zip(self.satellites, actions):
-            task = action_to_task[satellite.id][action]
-            info[satellite.id]['task'] = task.task_info()
-            info[satellite.id]['task_reward'] = task.get_reward()
+        for i, action in enumerate(actions):
+            sat = self.action_index_to_sat[i]
+            task = action_to_task[sat.id][action]
+            info[sat.id]['task'] = task.task_info()
+            info[sat.id]['task_reward'] = task.get_reward()
             self.n_tasks_collected += 1 if task.task_complete else 0
 
         for task in self.tasks:

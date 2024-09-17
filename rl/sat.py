@@ -101,6 +101,12 @@ class Satellite:
 
     def get_observation(self):
         return self.storage_unit.get_observation()
+    
+    def storage_after_task(self, task):
+        if task.is_data_downlink:
+            return 0.0
+        else:
+            return (self.storage_unit.storage_level + task.storage_size) / self.storage_unit.storage_capacity
 
     @property
     def id(self):

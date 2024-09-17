@@ -44,7 +44,7 @@ env:
   sim_rate: 1.0
   max_step_duration: &max_step_duration 200.0
   time_limit: 11400 # about 2 orbits
-  n_access_windows: &n_access_windows 10
+  n_access_windows: &n_access_windows 20
   n_sats: 10
 
   n_trajectory_factor: 20
@@ -59,9 +59,23 @@ env:
   task_max_duration: *max_step_duration
   task_min_elev: 0.7853981633974483 # 45 degrees in radians
 
+  # Empty task
+  noop_task_priority: 0.1 # Priority and rewards are correlated
   
 
-  observation_keys: ['x', 'y', 'z', 'window_index_offset', 'priority', 'n_required_collects', 'is_data_downlink', 'task_storage_size', 'storage_level', 'storage_capacity', 'storage_percentage']
+  observation_keys: 
+    - 'x'
+    - 'y'
+    - 'z'
+    - 'window_index_offset'
+    - 'priority'
+    - 'n_required_collects'
+    - 'is_data_downlink'
+    - 'task_storage_size'
+    - 'storage_level'
+    - 'storage_capacity'
+    - 'storage_percentage'
+    - 'storage_after_task'
   observation_defaults:
     x: 0
     y: 0
@@ -74,6 +88,7 @@ env:
     storage_capacity: 0
     storage_percentage: 0
     task_storage_size: 0
+    storage_after_task: 0
   observation_normalization_terms:
     x: 1
     y: 1
@@ -86,6 +101,7 @@ env:
     storage_capacity: 5000
     storage_percentage: 1.0
     task_storage_size: *task_max_storage_size
+    storage_after_task: 2.0
   groundStations:
     - name: Boulder
       lat: 40.009971

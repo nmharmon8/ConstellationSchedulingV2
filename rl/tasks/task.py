@@ -272,8 +272,8 @@ class Task:
 
 
 class EmptyTask(Task):
-    def __init__(self):
-        super().__init__("EmptyTask", r_LP_P=(0, 0, 0), priority=0, simultaneous_collects_required= 0, task_duration=0, tasking_type=TaskingType.NOOP, storage_size=0, max_step_duration=0, min_elev=0)
+    def __init__(self, priority):
+        super().__init__("EmptyTask", r_LP_P=(0, 0, 0), priority=priority, simultaneous_collects_required=0, task_duration=0, tasking_type=TaskingType.NOOP, storage_size=0, max_step_duration=0, min_elev=0)
 
     @property
     def is_data_downlink(self):
@@ -284,13 +284,13 @@ class EmptyTask(Task):
         return True
     
     def get_reward(self):
-        return 0
+        return self.priority
     
     def is_task_possible_in_window(self, satellite, window_index):
-        return False
+        return True
     
     def collect(self, satellite, start_time, end_time):
         pass
 
     def step(self):
-        return 0
+        return self.priority

@@ -328,3 +328,8 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+"""
+python -m rl.plotting.plot_map data.json  -s --draw-lines 
+"""

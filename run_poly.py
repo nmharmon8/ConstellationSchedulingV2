@@ -108,9 +108,40 @@ def run_policy(config, model_name, steps, output, greedy=False):
     truncated = False
     step = 0    
 
+    def greedy_action(info):
+
+        def get_action(sat_info):
+            # First look if we can complete any tasks
+            for idx, obs in enumerate(sat_info):
+                if obs['window_index_offset'] == 0:
+                    if obs['task_storage_size'] > 0:
+                        if obs['storage_after_task'] < 1:
+                            return idx
+
+            # Next check if we can downlink any data
+            for idx, obs in enumerate(sat_info):
+                if obs['window_index_offset'] == 0:
+                    if obs['is_data_downlink']:
+                        return idx
+
+            # Finally do a noop task
+            for idx, obs in enumerate(sat_info):
+                if obs['window_index_offset'] == 0:
+                    return idx
+                
+            raise ValueError("No action found")
+
+        actions = []
+        for i in range(len(info['action_index_to_sat'])):
+            sat_id = info['action_index_to_sat'][i]
+            sat_info = info['observation'][sat_id]
+            actions.append(get_action(sat_info))
+        return actions
+
+
     while not done and not truncated:
         if greedy:
-            action = [0] * config['env']['n_sats']
+            action = greedy_action(info)
         else:
             print("Computing action without exploration")
             action = algo.compute_single_action(obs, explore=False)
@@ -214,5 +245,5 @@ if __name__ == "__main__":
 
 
 """
-python run_poly.py --config=rl/configs/basic_config.yaml --model=v38_storage
+python run_poly.py --config=rl/configs/basic_config.yaml --model=v43_storage
 """

@@ -126,7 +126,9 @@ if __name__ == "__main__":
     config = load_config(args.config)
 
     # Inject worker_index, num_workers, and vector_index into the config as properties
-    
-
 
     main(config)
+
+"""
+python -m rl.gym --config rl/configs/basic_config.yaml
+"""

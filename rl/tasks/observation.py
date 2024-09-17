@@ -10,45 +10,63 @@ class Observation:
         self.satellite = satellite
         self.task = task
         self.window_index = window_index
+        # ??? 
+        assert self.task.is_task_possible_in_window(self.satellite, self.window_index)
         self.observation = self._get_observation()
 
+
+        
+
     def __lt__(self, other):
-        self_window_offset = self.observation['window_index_offset']
-        other_window_offset = other.observation['window_index_offset']
+        # First, check if either task is a NOOP task
+        self_is_noop = isinstance(self.task, EmptyTask)
+        other_is_noop = isinstance(other.task, EmptyTask)
         
-        if self_window_offset != other_window_offset:
-            return self_window_offset < other_window_offset
+        # NOOP tasks always come last
+        if self_is_noop and not other_is_noop:
+            return False
+        if other_is_noop and not self_is_noop:
+            return True
         
+        # If both are NOOP tasks or neither are NOOP tasks, continue with normal sorting
+        
+        # 1. Downlink tasks always come first
         if self.observation['is_data_downlink'] != other.observation['is_data_downlink']:
             return self.observation['is_data_downlink'] > other.observation['is_data_downlink']
         
+        self_window_offset = self.observation['window_index_offset']
+        other_window_offset = other.observation['window_index_offset']
+        
+        # 2. Sort by window offset (earlier windows first)
+        if self_window_offset != other_window_offset:
+            return self_window_offset < other_window_offset
+        
+        # 3. Sort by priority (higher priority first)
         return self.observation['priority'] > other.observation['priority']
 
-    def _get_empty_observation(self):
-        return {k:self.config['observation_defaults'][k] for k in self.config['observation_keys']}
+    # def _get_empty_observation(self):
+    #     return {k:self.config['observation_defaults'][k] for k in self.config['observation_keys']}
 
     def _get_observation(self):
         current_index = int(self.current_time // self.config['max_step_duration'])
         window_index_offset = self.window_index - current_index
         obs = {}
-        if self.task.is_task_possible_in_window(self.satellite, self.window_index):
-            x, y, z = self.task.r_LP_P
-            x = np.cos(x) * np.cos(y)
-            y = np.cos(x) * np.sin(y)
-            z = np.sin(x)
-            obs['x'] = x
-            obs['y'] = y
-            obs['z'] = z
-            obs['window_index'] = self.window_index
-            obs['window_index_offset'] = window_index_offset
-            obs['priority'] = self.task.priority
-            obs['n_required_collects'] = self.task.simultaneous_collects_required
-            obs['task_id'] = self.task.id
-            obs['task_storage_size'] = self.task.storage_size
-            obs['is_data_downlink'] = int(self.task.is_data_downlink)
-            obs = {**obs, **self.satellite.get_observation()}
-        else:
-            obs = self._get_empty_observation()
+        x, y, z = self.task.r_LP_P
+        x = np.cos(x) * np.cos(y)
+        y = np.cos(x) * np.sin(y)
+        z = np.sin(x)
+        obs['x'] = x
+        obs['y'] = y
+        obs['z'] = z
+        obs['window_index'] = self.window_index
+        obs['window_index_offset'] = window_index_offset
+        obs['priority'] = self.task.priority
+        obs['n_required_collects'] = self.task.simultaneous_collects_required
+        obs['task_id'] = self.task.id
+        obs['task_storage_size'] = self.task.storage_size
+        obs['is_data_downlink'] = int(self.task.is_data_downlink)
+        obs['storage_after_task'] = self.satellite.storage_after_task(self.task)
+        obs = {**obs, **self.satellite.get_observation()}
         return obs
     
     def get_normalized_observation(self):
@@ -84,19 +102,14 @@ class Observation:
 
 
 class EmptyObservation(Observation):
-    def __init__(self, config):
-        self.config = config
-        self.task = EmptyTask()
-        self.observation = self._get_empty_observation()
+    def __init__(self, config, satellite):
+        super().__init__(config, satellite, EmptyTask(priority=config['noop_task_priority']), 0, 0)
 
-    def get_normalized_observation_numpy(self):
-        return np.zeros(len(self.config['observation_keys']))
 
 class Observations:
 
-    def __init__(self, current_time, current_tasks_by_sat, satellites, action_def, config):
+    def __init__(self, current_time, current_tasks_by_sat, satellites, action_def, config, action_index_to_sat):
         self.current_time = current_time
-        self.satellite_ordered_ids = [sat.id for sat in satellites]
         self.satellites = {sat.id: sat for sat in satellites}
         self.current_tasks_by_sat = current_tasks_by_sat
         self.action_def = action_def
@@ -104,6 +117,8 @@ class Observations:
         self.n_access_windows = config['n_access_windows']
         self._observation_dict = None
         self._tasks = {}
+        self.action_index_to_sat = action_index_to_sat
+        self.satellite_ordered_ids = [self.action_index_to_sat[i].id for i in range(len(self.action_index_to_sat))]
 
     def get_observations_dict(self):
         observation_by_sat = {}
@@ -114,14 +129,10 @@ class Observations:
                 self._tasks[task.id] = task 
                 observation_by_sat[sat_id].append(Observation(self.config, satellite, task, self.current_time, window_index))
             while len(observation_by_sat[sat_id]) < self.n_access_windows:
-                observation_by_sat[sat_id].append(EmptyObservation(self.config))
-            observation_by_sat[sat_id] = sorted(observation_by_sat[sat_id])[:self.n_access_windows]
-
-        # # Print observation by sat
-        # for sat_id in self.satellite_ordered_ids:
-        #     print(f"Satellite {sat_id}:")
-        #     for obs in observation_by_sat[sat_id]:
-        #         print(obs)
+                observation_by_sat[sat_id].append(EmptyObservation(self.config, satellite))
+            observation_by_sat[sat_id] = sorted(observation_by_sat[sat_id])[:self.n_access_windows-1]
+            # Always set the final task in the observation to be the noop task / empty task
+            observation_by_sat[sat_id].append(EmptyObservation(self.config, satellite))
 
         return observation_by_sat
     
