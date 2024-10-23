@@ -6,7 +6,7 @@ from Basilisk.utilities import orbitalMotion
 
 from bsk_rl.utils.orbital import elevation
 
-from rl.tasks.task import Task
+from rl.tasks.task import CollectTask, EmptyTask, DownlinkTask, ChargeTask, DesatTask
 from rl.tasks.observation import Observations
 
 class TaskManager:
@@ -30,7 +30,7 @@ class TaskManager:
 
     def get_observations(self, current_time):
         for sat in self.satellites:
-            self.calculate_access_windows(sat,  calculation_start=current_time, duration=self.max_step_duration * self.n_access_windows)
+            self.calculate_access_windows(sat, calculation_start=current_time, duration=self.max_step_duration * self.n_access_windows)
 
         self.current_tasks_by_sat = {}
         for satellite in self.satellites:
@@ -42,6 +42,8 @@ class TaskManager:
     def reset(self):
         self.n_tasks = random.randint(self.config['min_tasks'], self.config['max_tasks'])
         self.tasks = self.get_random_tasks(self.n_tasks)
+        # Add empty tasks to support noop and if all task are collected
+        self.tasks.extend([EmptyTask(priority=self.config['noop_task_priority']) for _ in range(self.n_access_windows)])
         self.current_tasks_by_sat = {}
         observations = self.get_observations(0.0)
         self.n_tasks_collected = 0
@@ -51,6 +53,9 @@ class TaskManager:
         }
 
     def step(self, actions, start_time, end_time):
+
+        current_window_index = int(start_time // self.max_step_duration)
+
         info = {sat.id: sat.get_observation() for sat in self.satellites}
         info['action_index_to_sat'] = {i:sat.id for i, sat in self.action_index_to_sat.items()}
 
@@ -65,7 +70,10 @@ class TaskManager:
         for i, action in enumerate(actions):
             sat = self.action_index_to_sat[i]
             task = action_to_task[sat.id][action]
-            info[sat.id]['task'] = task.task_info()
+            
+            info[sat.id]['task_being_collected'] = task.task_info()
+            info[sat.id]['task_being_collected']['current_window_index'] = current_window_index
+            info[sat.id]['task_being_collected']['task_has_window'] = task.get_window(sat, window_index=current_window_index)
             info[sat.id]['task_reward'] = task.get_reward()
             self.n_tasks_collected += 1 if task.task_complete else 0
 
@@ -86,16 +94,23 @@ class TaskManager:
     def get_random_tasks(self, n_targets, radius=orbitalMotion.REQ_EARTH * 1e3):
         tasks = []
         for i in range(n_targets):
-            tasks.append(Task.create_random_task(self.config))
-        tasks.extend(Task.create_data_downlink_tasks(self.config))
+            tasks.append(CollectTask.create_random_task(self.config))
+        tasks.extend(DownlinkTask.create_data_downlink_tasks(self.config))
+        tasks.append(ChargeTask.create_charge_task(self.config))
+        tasks.append(DesatTask.create_desat_task(self.config))
         return tasks
 
     def get_upcoming_tasks(self, satellite, current_time):
         upcoming_tasks = []
         for task in self.tasks:
-            windows = task.get_upcoming_windows(satellite, current_time)
-            for window_index in windows:
-                upcoming_tasks.append((window_index, task))
+            if task.is_access_task:
+                windows = task.get_upcoming_windows(satellite, current_time)
+                for window_index in windows:
+                    upcoming_tasks.append((window_index, task))
+            else:
+                # Task that are not based on location are always available
+                upcoming_tasks.append((0, task))
+        print(f"Upcoming tasks length: {len(upcoming_tasks)}")
         return upcoming_tasks
             
 
@@ -123,7 +138,7 @@ class TaskManager:
         r_max = np.max(np.linalg.norm(positions, axis=-1))
         access_dist_thresh_multiplier = 1.1
 
-        for task in self.tasks:
+        for task in [task for task in self.tasks if task.is_access_task]:
             alt_est = r_max - np.linalg.norm(task.r_LP_P)
             access_dist_threshold = (
                 access_dist_thresh_multiplier * alt_est / np.sin(task.min_elev)

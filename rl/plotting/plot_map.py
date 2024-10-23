@@ -47,9 +47,9 @@ class TaskScatter:
         self.reset()
 
     def reset(self):
-        self.marker = self.markers[self.task.tasking_type][max(0, self.task.simultaneous_collects_required - 1)]
-        self.color = self.colors[self.task.tasking_type]
-        self.size = self.sizes[self.task.tasking_type]
+        self.marker = self.markers[self.task.task_type][max(0, self.task.simultaneous_collects_required - 1)]
+        self.color = self.colors[self.task.task_type]
+        self.size = self.sizes[self.task.task_type]
 
     @property
     def lat(self):
@@ -60,7 +60,7 @@ class TaskScatter:
         return self.task.lon
         
     def set_collecting(self, task_reward):
-        if self.task.tasking_type != 'DATA_DOWNLINK':
+        if self.task.task_type != 'DATA_DOWNLINK':
             self.color = 'red'
             if task_reward> 0:
                 self.color = 'green'
@@ -72,7 +72,7 @@ class ScatterTasks:
         self.tasks = {}
         self.ax = ax
         self.scatters = {}
-        self.tasks = {task.id: TaskScatter(task) for task in tasks}
+        self.tasks = {task.id: TaskScatter(task) for task in tasks if task.task_type != 'NOOP'}
 
     def reset_scatters(self):
         markers = set([task.marker for task in self.tasks.values()])

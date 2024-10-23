@@ -4,9 +4,10 @@ from datetime import datetime
 from rl.sat import Satellite, create_random_satellite
 from rl.tasks.task_manager import TaskManager
 from bsk_rl.utils.orbital import random_orbit
-from bsk_rl.utils.orbital import TrajectorySimulator
 # from bsk_rl.sim import Simulator as BSKSimulator
 from Basilisk.utilities import SimulationBaseClass
+from Basilisk.utilities import macros as mc
+
 
 CONSTANT_DATETIME = datetime(2023, 1, 1, 0, 0, 0).strftime("%Y %b %d %H:%M:%S.%f (UTC)")  # Year, Month, Day, Hour, Minute, Second
 
@@ -17,7 +18,11 @@ def get_default_world_args():
 
 from bsk_rl.sim.world import GroundStationWorldModel
 
+# def sec2nano(t):
+#     return int(t * 1e9)
 
+# def nano2sec(t):
+#     return t * 1e-9
 
 class Simulator(SimulationBaseClass.SimBaseClass):
 
@@ -26,7 +31,7 @@ class Simulator(SimulationBaseClass.SimBaseClass):
         self.config = config
         self.action_def = action_def
         self.sim_rate = config['sim_rate']
-        self.max_step_duration = config['max_step_duration']
+        self.max_step_duration_sec = config['max_step_duration']
         self.max_sat_coordination = config['max_sat_coordination']
         self.time_limit = config['time_limit']
         self.n_access_windows = config['n_access_windows']
@@ -34,49 +39,75 @@ class Simulator(SimulationBaseClass.SimBaseClass):
         self.max_tasks = config['max_tasks']
         self.n_sats = config['n_sats']
 
+        
+
         self.fsw_list = {}
         self.dynamics_list = {}
         self.world = GroundStationWorldModel(self, self.sim_rate, **get_default_world_args())
-        self.satellites = [create_random_satellite(f"EO-{i}", simulator=self) for i in range(self.n_sats)]
+        self.utc_init = datetime.now().strftime("%Y %b %d %H:%M:%S.%f (UTC)")
+        self.satellites = [create_random_satellite(f"EO-{i}", simulator=self, utc_init=self.utc_init) for i in range(self.n_sats)]
+        self.task_manager = TaskManager(self.satellites, self.config, self.action_def)
+        self.cum_reward = 0
 
         self.InitializeSimulation()
         self.ConfigureStopTime(0)
         self.ExecuteSimulation()
+
+
+    # def get_sat_info(self):
+    #     sat_info = {}
+    #     #  r_BP_P = sat.trajectory.r_BP_P(current_time)
+    #     #     lat, lon = ecef_to_latlon(r_BP_P[0], r_BP_P[1], r_BP_P[2])
+    #     for sat in self.satellites:
+    #         sat_info[sat.id] = sat.get_info()
+    #     return sat_info
+        
   
 
     def reset(self):
-        self.sim_time = 0.0
-        self.cum_reward = 0
+        assert self.sim_time_ns == 0, "Simulation cannot be reset, you must create a new instance"
 
-        self.task_manager = TaskManager(self.satellites, self.config, self.action_def)
         observation, info = self.task_manager.reset()
 
         info['observation'] = observation.get_info_observation_dict()
         self.last_obs = observation
         
         return observation.get_observation_numpy(), info
+    
+
+    def is_alive(self):
+        return all(sat.is_alive() for sat in self.satellites)
 
 
     def step(self, actions):
-        # Simulation time
-        start_time = self.sim_time
-        end_time = self.sim_time + self.max_step_duration
 
-        tasks_observations, reward, tasks_info = self.task_manager.step(actions, start_time, end_time)
+        # Simulation time
+        end_time = self.sim_time_ns + mc.sec2nano(self.max_step_duration_sec)
+
+        tasks_observations, reward, tasks_info = self.task_manager.step(actions, self.sim_time_ns * mc.NANO2SEC, end_time * mc.NANO2SEC)
         self.cum_reward += reward
 
         tasks_info['observation'] = self.last_obs.get_info_observation_dict()
         self.last_obs = tasks_observations
 
-        print(f"Is this correct place to run the simulation forward?")
+
+        print(f"FSW: Going to run simulation from {self.sim_time_ns} to {end_time} ")
         self.ConfigureStopTime(end_time)
         self.ExecuteSimulation()
       
-        # Update the simulation time
-        self.sim_time = end_time
         return tasks_observations.get_observation_numpy(), reward, tasks_info
     
 
+    @property
+    def sim_time_ns(self) -> int:
+        """Simulation time in ns, tied to SimBase integrator."""
+        return self.TotalSim.CurrentNanos
+
+    @property
+    def sim_time(self) -> float:
+        """Simulation time in seconds, tied to SimBase integrator."""
+        return self.sim_time_ns * mc.NANO2SEC
+    
     @property
     def done(self):
         return self.sim_time >= self.time_limit

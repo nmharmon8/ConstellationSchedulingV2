@@ -11,7 +11,7 @@ task = {
     "longitude":5.690431446207682,
     "altitude":2254.9848913863793,
     "min_elev":0.7853981633974483,
-    "tasking_type":"IMAGING",
+    "task_type":"IMAGING",
     "simultaneous_collects_required":3,
     "storage_size":911.3346876820792,
     "is_data_downlink":false,

@@ -11,7 +11,7 @@ import ray
 from pymap3d import ecef2geodetic
 from rl.config import parse_args, load_config
 from rl.action_def import ActionDef
-
+from rl.tasks.observation import get_observation_from_numpy
 def set_seed(seed):
     import random
     import numpy as np
@@ -73,32 +73,19 @@ def run_policy(config, model_name, steps, output, greedy=False):
     print(f"Restoring from {checkpoint}")
     algo.restore(checkpoint)
 
-    # config['env']['time_limit'] = 100000
+    # config['env']['time_limit'] = 5700
     config['env']['min_tasks'] = 500
     config['env']['max_tasks'] = 500
 
     env = SatelliteTasking(config['env'])
     obs, info = env.reset(seed=42)
+    action_index_to_sat = info['action_index_to_sat']
     total_reward = 0
 
 
     def ecef_to_latlon(x, y, z):
         lat, lon, alt = ecef2geodetic(x, y, z)
         return lat, lon
-
-    def map_tasks(task):
-        r_LP_P = task.r_LP_P
-        lat, lon = ecef_to_latlon(r_LP_P[0], r_LP_P[1], r_LP_P[2])
-        return {
-            'id': task.id, 
-            'latitude': lat, 
-            'longitude': lon, 
-            'priority': task.priority, 
-            'min_elev': task.min_elev, 
-            'simultaneous_collects_required':task.simultaneous_collects_required,
-            'storage_size': task.storage_size,
-            'is_data_downlink': bool(task.is_data_downlink) 
-        }
 
     tasks = env.simulator.task_manager.tasks
     tasks = [task.task_info() for task in tasks]
@@ -108,40 +95,41 @@ def run_policy(config, model_name, steps, output, greedy=False):
     truncated = False
     step = 0    
 
-    def greedy_action(info):
+    def greedy_action(obs):
 
-        def get_action(sat_info):
+        def get_action(sat_info):        
+
             # First look if we can complete any tasks
             for idx, obs in enumerate(sat_info):
                 if obs['window_index_offset'] == 0:
                     if obs['task_storage_size'] > 0:
                         if obs['storage_after_task'] < 1:
                             return idx
-
-            # Next check if we can downlink any data
+                        
+             # Next check if we can downlink any data
             for idx, obs in enumerate(sat_info):
                 if obs['window_index_offset'] == 0:
                     if obs['is_data_downlink']:
                         return idx
 
-            # Finally do a noop task
-            for idx, obs in enumerate(sat_info):
-                if obs['window_index_offset'] == 0:
-                    return idx
-                
-            raise ValueError("No action found")
+            # Finally do a noop task, always last task
+            return len(sat_info) - 1
+            
 
         actions = []
+        obs = get_observation_from_numpy(obs, action_index_to_sat, config['env'])
         for i in range(len(info['action_index_to_sat'])):
             sat_id = info['action_index_to_sat'][i]
-            sat_info = info['observation'][sat_id]
+            sat_info = obs[sat_id]
             actions.append(get_action(sat_info))
         return actions
 
+    
 
     while not done and not truncated:
+
         if greedy:
-            action = greedy_action(info)
+            action = greedy_action(obs)
         else:
             print("Computing action without exploration")
             action = algo.compute_single_action(obs, explore=False)
@@ -164,7 +152,7 @@ def run_policy(config, model_name, steps, output, greedy=False):
             satellite_data[sat.id]['time'] = current_time
             satellite_data[sat.id]['latitude'] = lat
             satellite_data[sat.id]['longitude'] = lon
-            satellite_data[sat.id]['task_being_collected'] = info[sat.id]['task'] # map_tasks(info[sat.id]['task']) if info[sat.id]['task'] else None
+            # satellite_data[sat.id]['task_being_collected'] = info[sat.id]['task'] # map_tasks(info[sat.id]['task']) if info[sat.id]['task'] else None
             satellite_data[sat.id]['task_reward'] = info[sat.id]['task_reward'] if 'task_reward' in info[sat.id] else 0
             satellite_data[sat.id]['actions'] = int(action[i])
             satellite_data[sat.id]['action_type'] = action_def.get_action_type(action[i])
@@ -184,6 +172,7 @@ def run_policy(config, model_name, steps, output, greedy=False):
         data_per_step.append(step_data)
         obs = next_obs
         total_reward += reward
+        step += 1
 
     json_data = {}
     json_data['tasks'] = tasks
@@ -245,5 +234,5 @@ if __name__ == "__main__":
 
 
 """
-python run_poly.py --config=rl/configs/basic_config.yaml --model=v43_storage
+python run_poly.py --config=rl/configs/basic_config.yaml --model=v58_full_fsw --greedy
 """

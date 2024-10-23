@@ -1,6 +1,6 @@
 import numpy as np
 
-from rl.tasks.task import EmptyTask
+# from rl.tasks.task import EmptyTask
 
 class Observation:
 
@@ -14,25 +14,31 @@ class Observation:
         assert self.task.is_task_possible_in_window(self.satellite, self.window_index)
         self.observation = self._get_observation()
 
-
-        
-
     def __lt__(self, other):
         # First, check if either task is a NOOP task
-        self_is_noop = isinstance(self.task, EmptyTask)
-        other_is_noop = isinstance(other.task, EmptyTask)
-        
-        # NOOP tasks always come last
-        if self_is_noop and not other_is_noop:
+         # NOOP tasks always come last
+        if self.task.is_noop and not other.task.is_noop:
             return False
-        if other_is_noop and not self_is_noop:
+        if other.task.is_noop and not self.task.is_noop:
             return True
         
-        # If both are NOOP tasks or neither are NOOP tasks, continue with normal sorting
+        # Charge tasks always come first
+        if self.task.is_charge and not other.task.is_charge:
+            return True
+        if other.task.is_charge and not self.task.is_charge:
+            return False
         
-        # 1. Downlink tasks always come first
-        if self.observation['is_data_downlink'] != other.observation['is_data_downlink']:
-            return self.observation['is_data_downlink'] > other.observation['is_data_downlink']
+        # Desat tasks always come second after charge tasks
+        if self.task.is_desat and not other.task.is_desat:
+            return True
+        if other.task.is_desat and not self.task.is_desat:
+            return False
+  
+        # Downlink tasks always come third after desat tasks
+        if self.task.is_data_downlink and not other.task.is_data_downlink:
+            return True
+        if other.task.is_data_downlink and not self.task.is_data_downlink:
+            return False
         
         self_window_offset = self.observation['window_index_offset']
         other_window_offset = other.observation['window_index_offset']
@@ -44,12 +50,10 @@ class Observation:
         # 3. Sort by priority (higher priority first)
         return self.observation['priority'] > other.observation['priority']
 
-    # def _get_empty_observation(self):
-    #     return {k:self.config['observation_defaults'][k] for k in self.config['observation_keys']}
-
     def _get_observation(self):
         current_index = int(self.current_time // self.config['max_step_duration'])
         window_index_offset = self.window_index - current_index
+
         obs = {}
         x, y, z = self.task.r_LP_P
         x = np.cos(x) * np.cos(y)
@@ -65,6 +69,7 @@ class Observation:
         obs['task_id'] = self.task.id
         obs['task_storage_size'] = self.task.storage_size
         obs['is_data_downlink'] = int(self.task.is_data_downlink)
+        obs['is_charge_task'] = int(self.task.is_charge)
         obs['storage_after_task'] = self.satellite.storage_after_task(self.task)
         obs = {**obs, **self.satellite.get_observation()}
         return obs
@@ -101,9 +106,9 @@ class Observation:
         return info
 
 
-class EmptyObservation(Observation):
-    def __init__(self, config, satellite):
-        super().__init__(config, satellite, EmptyTask(priority=config['noop_task_priority']), 0, 0)
+# class EmptyObservation(Observation):
+#     def __init__(self, config, satellite, current_time):
+#         super().__init__(config, satellite, EmptyTask(priority=config['noop_task_priority']), current_time, current_time // config['max_step_duration'])
 
 
 class Observations:
@@ -128,11 +133,17 @@ class Observations:
             for window_index, task in self.current_tasks_by_sat[sat_id]:
                 self._tasks[task.id] = task 
                 observation_by_sat[sat_id].append(Observation(self.config, satellite, task, self.current_time, window_index))
-            while len(observation_by_sat[sat_id]) < self.n_access_windows:
-                observation_by_sat[sat_id].append(EmptyObservation(self.config, satellite))
-            observation_by_sat[sat_id] = sorted(observation_by_sat[sat_id])[:self.n_access_windows-1]
-            # Always set the final task in the observation to be the noop task / empty task
-            observation_by_sat[sat_id].append(EmptyObservation(self.config, satellite))
+           
+            # # Add a charge task  
+            # observation_by_sat[sat_id].append(Observation(self.config, satellite, ChargeTask(), self.current_time, 0))
+           
+            assert len(observation_by_sat[sat_id]) >= self.n_access_windows
+            observation_by_sat[sat_id] = sorted(observation_by_sat[sat_id])
+
+            # The last task is guaranteed to be a noop task and we want to insure a noop task is always available
+            observation_by_sat[sat_id] = observation_by_sat[sat_id][:self.n_access_windows-1] + observation_by_sat[sat_id][-1:]
+            # # Always set the final task in the observation to be the noop task / empty task
+            # observation_by_sat[sat_id].append(EmptyObservation(self.config, satellite, self.current_time))
 
         return observation_by_sat
     
@@ -162,3 +173,28 @@ class Observations:
                 obs = obs_dict[sat_id][action]
                 action_to_task[sat_id][action] = obs.task
         return action_to_task
+    
+
+def get_key_from_observation(key, action, observation, sat_index, config):
+    """
+        Get the value from a numpy array observation given the key, this requires
+        figuring out the correct index depending on the key
+        observation shape [n_sats, n_access_windows, n_features]
+    """
+    key_index = config['observation_keys'].index(key)
+    norm_value = config['observation_normalization_terms'][key]
+    return observation[sat_index, action, key_index] * norm_value
+
+def get_observation_from_numpy(observation, action_index_to_sat, config):
+    """
+    Convert the numpy array observation back to a dictionary observation
+    """
+    obs = {}
+    for sat_idx, sat_id in action_index_to_sat.items():
+        obs[sat_id] = []
+        for action in range(observation.shape[1]):
+            action_obs = {}
+            for key in config['observation_keys']:
+                action_obs[key] = get_key_from_observation(key, action, observation, sat_idx, config)
+            obs[sat_id].append(action_obs)
+    return obs

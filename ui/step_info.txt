@@ -1,0 +1,136 @@
+High Level Strucuter of the info returned by step
+{
+    "last_step" {
+        "obs": [[Numerical values of the observation that where input to the NN]],
+        "reward" Reward for the step
+        "done": whether the episode is done
+        "truncated": whether the episode is truncated
+        "info": {
+            "SatID1": {SatINFO}
+            "SatID2": {SatINFO}
+            "SatIDN": {SatINFO}
+            "action_index_to_sat": {}
+            "cum_reward" cum reward for all steps up to this point
+            "n_tasks_collected": Number of task task_complete
+            "observation": {Observation}
+        }
+    },
+    "current_step": Same as last_step
+}
+
+The step info is json with the following fields:
+- last_step: the last step data
+- current_step: the current step data
+
+The last_step and current_step fields contain the following:
+- obs: the observation
+- reward: the reward
+- done: whether the episode is done
+- truncated: whether the episode is truncated
+- info: the info
+
+The info field contains the following:
+{
+    "SatId (Somthing like EO-0_140010771766752)": SatInfo
+    "SatId (Next SatId)": SatInfo
+        "action_index_to_sat":{
+        "0":"EO-0_140010771766752",
+        "1":"EO-1_140010771766512",
+        "2":"EO-2_140010772892688"
+    },
+    "cum_reward":0.6266754492304331,
+    "n_tasks_collected":0,
+    "observation": Observation
+}
+
+
+Example of what a SatInfo could be
+{
+    "storage_level":23046293376.0,
+    "storage_capacity":40000000000,
+    "storage_percentage":0.5761573344,
+    "power_level":349756.30343348044,
+    "power_capacity":720000.0,
+    "power_percentage":0.48577264365761175,
+    "in_eclipse":true,
+    "next_eclipse":4380.0,
+    "end_of_eclipse":420.0,
+    "task_being_collected":{
+    "id":"Task ID (Somthing like tgt-eb599913-79a6-4198-b39e-7a8c1318921d_140010771760320)",
+    "task_type":"IMAGING",
+    "sats_collecting":[
+        "SatId1",
+        "SatId2",
+    ],
+    "is_data_downlink":false,
+    "is_noop":false,
+    "is_charge":false,
+    "is_collection":true,
+    "is_desat":false,
+    "priority":0.05747063299950761,
+    "simultaneous_collects_required":1,
+    "storage_size":953.5987935942761,
+    "task_duration":110.92053687019438,
+    "task_complete":false,
+    "task_reward":0,
+    "latitude":-38.40733741628502,
+    "longitude":-123.97177637393708,
+    "altitude":8210.538201057501,
+    "min_elev":0.7853981633974483,
+    "current_window_index":0,
+    "task_has_window":0
+    },
+    "task_reward":0
+},
+
+Example of Observation (Observations are a dict by SatID with a list of observed task details this is an ordered list corrisponding to actions)
+"EO-0_140010771766752":[
+    {
+        "x":1.0,
+        "y":0.0,
+        "z":0.8414709848078965,
+        "window_index":0,
+        "window_index_offset":0,
+        "priority":0.0,
+        "n_required_collects":0,
+        "task_id":"ChargeTask_140010774774016",
+        "task_storage_size":0,
+        "is_data_downlink":0,
+        "is_charge_task":1,
+        "storage_after_task":40000000000,
+        "storage_level":23046293376.0,
+        "storage_capacity":40000000000,
+        "storage_percentage":0.5761573344,
+        "power_level":349756.30343348044,
+        "power_capacity":720000.0,
+        "power_percentage":0.48577264365761175,
+        "in_eclipse":true,
+        "next_eclipse":4380.0,
+        "end_of_eclipse":420.0
+    },
+    ...
+    {
+        "x":1.0,
+        "y":0.0,
+        "z":0.8414709848078965,
+        "window_index":0,
+        "window_index_offset":0,
+        "priority":0.0,
+        "n_required_collects":0,
+        "task_id":"DesatTask_140010772015344",
+        "task_storage_size":0,
+        "is_data_downlink":0,
+        "is_charge_task":0,
+        "storage_after_task":40000000000,
+        "storage_level":23046293376.0,
+        "storage_capacity":40000000000,
+        "storage_percentage":0.5761573344,
+        "power_level":349756.30343348044,
+        "power_capacity":720000.0,
+        "power_percentage":0.48577264365761175,
+        "in_eclipse":true,
+        "next_eclipse":4380.0,
+        "end_of_eclipse":420.0
+    }
+], 
+"Next Sata ID": Next Observation List

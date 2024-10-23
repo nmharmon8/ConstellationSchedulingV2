@@ -12,7 +12,7 @@ training:
 
 training_args:
   lr: 0.00003
-  gamma: 0.5
+  gamma: 0.99
   train_batch_size: 128
   sgd_minibatch_size: 32 # Default is 128
   num_sgd_iter: 8 # Default is 30
@@ -43,16 +43,16 @@ model:
 env:
   sim_rate: 1.0
   max_step_duration: &max_step_duration 200.0
-  time_limit: 11400 # about 2 orbits
+  time_limit: 21400 #11400 # about 2 orbits
   n_access_windows: &n_access_windows 20
-  n_sats: 10
+  n_sats: 3
 
   n_trajectory_factor: 20
 
   min_tasks: 500
   max_tasks: 500
 
-  max_sat_coordination: &max_sat_coordination 3
+  max_sat_coordination: &max_sat_coordination 1
   task_min_storage_size: 100
   task_max_storage_size: &task_max_storage_size 1000
   task_min_duration: 30
@@ -60,8 +60,10 @@ env:
   task_min_elev: 0.7853981633974483 # 45 degrees in radians
 
   # Empty task
-  noop_task_priority: 0.1 # Priority and rewards are correlated
-  
+  noop_task_priority: 0.0 # Priority and rewards are correlated
+  downlink_task_priority: 0.0
+  charge_task_priority: 0.0
+  desat_task_priority: 0.0
 
   observation_keys: 
     - 'x'
@@ -72,10 +74,11 @@ env:
     - 'n_required_collects'
     - 'is_data_downlink'
     - 'task_storage_size'
-    - 'storage_level'
-    - 'storage_capacity'
-    - 'storage_percentage'
-    - 'storage_after_task'
+    # - 'storage_level'
+    # - 'storage_capacity'
+    # - 'storage_percentage'
+    # - 'storage_after_task'
+    - 'is_charge_task'
   observation_defaults:
     x: 0
     y: 0
@@ -89,6 +92,7 @@ env:
     storage_percentage: 0
     task_storage_size: 0
     storage_after_task: 0
+    is_charge_task: 0
   observation_normalization_terms:
     x: 1
     y: 1
@@ -97,11 +101,12 @@ env:
     priority: 1
     n_required_collects: *max_sat_coordination
     is_data_downlink: 1
-    storage_level: 5000
-    storage_capacity: 5000
+    storage_level: 40000000000
+    storage_capacity: 40000000000
     storage_percentage: 1.0
     task_storage_size: *task_max_storage_size
-    storage_after_task: 2.0
+    storage_after_task: 40000000000
+    is_charge_task: 1
   groundStations:
     - name: Boulder
       lat: 40.009971

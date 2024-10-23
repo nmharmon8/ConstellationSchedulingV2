@@ -50,8 +50,8 @@ from ray.air.constants import TRAINING_ITERATION
 stop = {
     TRAINING_ITERATION: 100000,
 }
-
 from ray.train import CheckpointConfig
+
 checkpoint_config = CheckpointConfig(
     num_to_keep=3,
     checkpoint_score_attribute="episode_reward_mean",
@@ -68,5 +68,5 @@ results = tune.Tuner(
 ).fit()
 
 """
-python -m rl.train --config=rl/configs/basic_config.yaml --name=v43_storage
+python -m rl.train --config=rl/configs/basic_config.yaml --name=v58_full_fsw
 """

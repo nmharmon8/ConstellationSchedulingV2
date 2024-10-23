@@ -36,46 +36,26 @@ class SatelliteTasking(Env):
         self.seed = self.worker_idx + self.vector_env_index * self.num_workers
         set_seeds(self.seed)
 
-
         self.config = config
         self.action_def = ActionDef(config)
         self.action_space = self.action_def.action_space
         self.observation_space = spaces.Box(low=-1, high=1, shape=(config['n_sats'], config['n_access_windows'], len(config['observation_keys'])))
-
         self.simulator = Simulator(config, self.action_def)
-        self.latest_step_duration = 0.0
-
 
     @property
     def cum_reward(self):
         return self.simulator.cum_reward
 
-
     def reset(self, seed=None, options=None):
-
-        # print("Input seed: ", seed)
-        
-        # if seed is None:
-        #     seed = time_ns() % 2**32 + self.seed
-
-        # print(f"Resetting seed: {seed} worker_idx: {self.worker_idx} vector_env_index: {self.vector_env_index} num_workers: {self.num_workers}")
-
-        # super().reset(seed=seed)
-        # np.random.seed(seed)
-        # random.seed(seed)
-
         self.simulator = Simulator(self.config, self.action_def)
         observations, info = self.simulator.reset()
-
-        self.latest_step_duration = 0.0
-
         return observations, info
 
     def step(self, actions):
 
         next_obs, reward, info = self.simulator.step(actions)
 
-        return next_obs, reward, self.simulator.done, False, info
+        return next_obs, reward, self.simulator.done, not self.simulator.is_alive(), info
 
 
     def render(self) -> None:  # pragma: no cover
@@ -89,34 +69,29 @@ class SatelliteTasking(Env):
 
 
 def main(config):
-
-
+    from pprint import pprint
     import random
     env = SatelliteTasking(config['env'])
     obs, info = env.reset()
     done = False
-    truncated = False
+    terminated = False
     total_reward = 0
 
     step = 0
+    while not done and not terminated:
+        print(f"")
+        action = [step % 4] * config['env']['n_sats']
+        # action = [0] * config['env']['n_sats']
+        obs, reward, done, terminated, info = env.step(action)
 
-    start_time = time.time()   
-    time_steps = 200
-    while True:
+        # print(f"reward: {reward}")
+        # print(f"done: {done}")
+        # print(f"terminated: {terminated}")
+        # print(f"info: {info}")
+        pprint(info)
 
-        # if not done and not truncated:
-        #     obs, info = env.reset()
-        action = [0, 0, 0, 0]
-        next_obs, reward, done, truncated, _ = env.step(action)
-        # print(f"Obs: {obs}, Action: {action}, Reward: {reward} Done: {done} Truncated: {truncated}")
-        obs = next_obs
         total_reward += reward
         step += 1
-        if (step + 1) % time_steps == 0:
-            stop_time = time.time()
-            print(f"Avg Step time taken: {(stop_time - start_time) / time_steps}")
-            start_time = time.time()
-            next_obs, info = env.reset()
             
 
 

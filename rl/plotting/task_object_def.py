@@ -11,7 +11,7 @@ task = {
     "longitude":5.690431446207682,
     "altitude":2254.9848913863793,
     "min_elev":0.7853981633974483,
-    "tasking_type":"IMAGING",
+    "task_type":"IMAGING",
     "simultaneous_collects_required":3,
     "storage_size":911.3346876820792,
     "is_data_downlink":false,
@@ -33,15 +33,15 @@ class Task:
 
     @property
     def is_collect_tasking(self):
-        return self.task["tasking_type"] in self.COLLECT_TASKING
+        return self.task["task_type"] in self.COLLECT_TASKING
     
     @property
     def is_downlink_tasking(self):
-        return self.task["tasking_type"] == "DATA_DOWNLINK"
+        return self.task["task_type"] == "DATA_DOWNLINK"
     
     @property
-    def tasking_type(self):
-        return self.task["tasking_type"]
+    def task_type(self):
+        return self.task["task_type"]
     
     @property
     def storage_size(self):
@@ -84,8 +84,8 @@ class Task:
         return self.task["min_elev"]
     
     @property
-    def tasking_type(self):
-        return self.task["tasking_type"]
+    def task_type(self):
+        return self.task["task_type"]
     
     @property
     def lat(self):
