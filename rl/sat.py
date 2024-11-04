@@ -1,7 +1,7 @@
 import logging
-from datetime import datetime
 
 import numpy as np
+from pymap3d import ecef2geodetic
 from weakref import proxy
 from bsk_rl.utils.orbital import TrajectorySimulator
 from bsk_rl.utils.orbital import random_orbit
@@ -51,13 +51,17 @@ class Satellite:
             return self.dynamics.instrumentPowerSink.nodePowerOut
 
     def can_complete_task(self, task):
-        # storage_change = self._get_storage_change(task)
-        # power_change = self._get_power_change(task)
-        # if storage_change + self.dynamics.storage_level <= 0:
-        #     return False
-        # if power_change + self.dynamics.battery_charge <= 0:
-        #     return False
-        # return True
+        if task.is_charge:
+            if self.in_eclipse():
+                return False
+        elif task.is_desat:
+            if self.pct_power() < 0.05:
+                return False
+        elif task.is_data_downlink:
+            pass
+        elif task.is_collection:
+            if self.pct_power() < 0.05:
+                return False
         return True
     
     def in_eclipse(self):
@@ -78,68 +82,78 @@ class Satellite:
         eclipse_start, eclipse_end = self.trajectory.next_eclipse(self.simulator.sim_time)
         return eclipse_end-self.simulator.sim_time
 
-    def print_storage_level(self):
-        print(f"FSW: Storage: Satellite {self.name} storage valid: {self.dynamics.data_storage_valid()}")
-        print(f"FSW: Storage: Satellite {self.name} storage level: {self.dynamics.storage_level} storage capacity: {self.dynamics.storageUnit.storageCapacity}")
-        print(f"FSW: Storage: Satellite {self.name} storage percentage: {self.dynamics.storage_level_fraction}")
+    def in_valid_state(self):
+        # Check if the satellite is alive and the FSW is alive 
+        return self.dynamics.is_alive(log_failure=False) and self.fsw.is_alive(log_failure=False)
+    
+    def pct_power(self):
+        return self.dynamics.battery_charge_fraction
+    
+    def pct_storage(self):
+        return self.dynamics.storage_level_fraction
+    
 
-    def print_power_level(self):
-        print(f"FSW: Power: Satellite {self.name} power level: {self.dynamics.battery_charge} power capacity: {self.dynamics.powerMonitor.storageCapacity}")
-        print(f"FSW: Power: Satellite {self.name} power percentage: {self.dynamics.battery_charge_fraction}")
-        print(f"FSW: Power: Satellite {self.name} power valid: {self.dynamics.battery_valid()}")
+    def print_stat_stats(self, info=None):
+        sat_stats = f"##############################################\n"
+        sat_stats += f"Satellite {self.name} stats\n"
+        if info is not None:
+            sat_stats += info
+        sat_stats += f"    Charge: {self.dynamics.battery_charge_fraction}\n"
+        sat_stats += f"    Storage: {self.dynamics.storage_level_fraction}\n"
+        sat_stats += f"    In eclipse: {self.in_eclipse()}\n"
+        sat_stats += f"    Wheel speeds: {self.dynamics.wheel_speeds_fraction}\n"
+        sat_stats += f"    Is alive: {self.is_alive()}\n"
+        sat_stats += f"        FSW is alive: {self.fsw.is_alive(log_failure=True)}\n"
+        sat_stats += f"        Dynamics is alive: {self.dynamics.is_alive(log_failure=False)}\n"
+        sat_stats += f"             battery_valid: {self.dynamics.battery_valid()}\n"
+        sat_stats += f"             data_storage_valid: {self.dynamics.data_storage_valid()}\n"
+        sat_stats += f"             rw_speeds_valid: {self.dynamics.rw_speeds_valid()}\n"
+        sat_stats += f"             altitude_valid: {self.dynamics.altitude_valid()}\n"
+        sat_stats += f"##############################################\n"
+        print(sat_stats)
 
-    def task_started(self, task):
-        print(f"Satellite {self.name} task started: {task.id}")
-        
-        if task.is_data_downlink:
+    def _task_started(self, task, window_offset):
+        if task.is_data_downlink: #and window_offset == 0:
+            # Have to manually check as down link is not based on lat, lon
             print(f"FSW: Satellite {self.name} downlinking")
             self.fsw.action_downlink()
         elif task.is_charge:
-            print(f"FSW: Satellite {self.name} charging")
-            print(f"FSW: Satellite {self.name} in eclipse: {self.in_eclipse()} next eclipse: {self.next_eclipse()} end of eclipse: {self.end_of_eclipse()}")
             if not self.in_eclipse():
-                print(f"FSW: Satellite {self.name} not in eclipse, charging")
                 self.fsw.action_charge()
             else:
-                print(f"FSW: Satellite {self.name} in eclipse, not charging")
                 self.fsw.action_drift()
         elif task.is_desat:
-            print(f"FSW: Satellite {self.name} desaturating")
             self.fsw.action_desat()
         elif task.is_collection:
-            print(f"FSW: Satellite {self.name} collecting data")
             self.fsw.action_nadir_scan(task.r_LP_P)
-            # self.fsw.action_image(task.r_LP_P, task.data_name)
         elif task.task_type == TaskType.NOOP:
             self.fsw.action_drift()
         else:
-            raise ValueError(f"Invalid task type: {TaskType.to_str(task.task_type)}")
+            print(f"FSW: Satellite {self.name} unknown task type: {task.task_type}")
+            self.fsw.action_drift()
 
-        self.print_storage_level()
-        self.print_power_level()
+    def start_action(self, task, window_offset, start_time, end_time):
+        """
+        Called before running the simulation step
+        """
+        # self.print_stat_stats(info=f"    Pre-task stats {task.get_task_type_str()}\n")
+        task.collect(self, start_time, end_time)
+        self._task_started(task, window_offset)
 
-    def task_completed(self, task):
-        print(f"Satellite {self.name} task completed: {task.id}")
-        # self.storage_unit.task_completed(task)
+    def complete_action(self, task, end_time):
+        """
+        Called after running the simulation step
+        """
+        task.complete(self, end_time)
+        self._task_completed(task)
+        # self.print_stat_stats(info=f"    Post-task stats {task.get_task_type_str()}\n")
+        
+    def _task_completed(self, task):
+        pass
 
     def task_failed(self, task):
         pass
-        # print(f"Satellite {self.name} task failed: {task.id}, task size: {task.storage_size}, remaining storage: {self.storage_unit.storage_capacity - self.storage_unit.storage_level}")
-        # self.storage_unit.task_failed(task)
 
-    def get_observation(self):
-        return {
-            'storage_level': self.dynamics.storage_level,
-            'storage_capacity': self.dynamics.storageUnit.storageCapacity,
-            'storage_percentage': self.dynamics.storage_level_fraction,
-            'power_level': self.dynamics.battery_charge,
-            'power_capacity': self.dynamics.powerMonitor.storageCapacity,
-            'power_percentage': self.dynamics.battery_charge_fraction,
-            'in_eclipse': self.in_eclipse(),
-            'next_eclipse': self.next_eclipse(),
-            'end_of_eclipse': self.end_of_eclipse(),
-        }
-    
     def storage_after_task(self, task):
         storage_change = self._get_storage_change(task)
         if task.is_data_downlink:
@@ -148,12 +162,10 @@ class Satellite:
         else:
             return max(self.dynamics.storageUnit.storageCapacity, self.dynamics.storage_level + storage_change)
 
-
     def is_alive(self, log_failure=False):
         is_alive = self.dynamics.is_alive(log_failure=log_failure) and self.fsw.is_alive(
             log_failure=log_failure
         )
-        print(f"FSW: Satellite {self.name} is alive: {is_alive}")
         return is_alive
 
     @property
@@ -185,7 +197,6 @@ class Satellite:
         del self.trajectory
 
     def get_info(self):
-        from pymap3d import ecef2geodetic
         r_BP_P = self.trajectory.r_BP_P(self.simulator.sim_time)
         lat, lon, alt = ecef2geodetic(r_BP_P[0], r_BP_P[1], r_BP_P[2])
         return {
@@ -194,6 +205,23 @@ class Satellite:
             'lon': lon,
             'alt': alt,
             'observation': self.get_observation(),
+        }
+    
+    def get_observation(self):
+        return {
+            'is_alive': self.is_alive(),
+            'storage_level': self.dynamics.storage_level,
+            'storage_capacity': self.dynamics.storageUnit.storageCapacity,
+            'storage_percentage': self.dynamics.storage_level_fraction,
+            'power_level': self.dynamics.battery_charge,
+            'power_capacity': self.dynamics.powerMonitor.storageCapacity,
+            'power_percentage': self.dynamics.battery_charge_fraction,
+            'wheel_speed_1': self.dynamics.wheel_speeds_fraction[0],
+            'wheel_speed_2': self.dynamics.wheel_speeds_fraction[1],
+            'wheel_speed_3': self.dynamics.wheel_speeds_fraction[2],
+            'in_eclipse': self.in_eclipse(),
+            'next_eclipse': self.next_eclipse(),
+            'end_of_eclipse': self.end_of_eclipse(), 
         }
 
 
@@ -239,8 +267,8 @@ def create_random_satellite(name, simulator, utc_init):
         'rwBasePower': 0.4, 
         'rwMechToElecEfficiency': 0.0, 
         'rwElecToMechEfficiency': 0.5, 
-        'panelArea': 1.0, 
-        'panelEfficiency': 0.2, 
+        'panelArea': 2.0, # Charge with 2 panel area and 100% efficiency allows full recharge in 200 seconds
+        'panelEfficiency': 1.0, 
         'nHat_B': np.array([ 0,  0, -1]), 
         'mass': 330, 
         'width': 1.38, 
@@ -265,16 +293,6 @@ def create_random_satellite(name, simulator, utc_init):
     return Satellite(sat_args, simulator=simulator, name=name, utc_init=utc_init)
         
 
-
-class SatelliteManager:
-
-    def __init__(self, simulator, config):
-        self.n_sats = config['n_sats']
-        self.satellites = [create_random_satellite(f"EO-{i}", simulator=simulator) for i in range(self.n_sats)]
-
-    def get_observation(self):
-        return {sat.id: sat.get_observation() for sat in self.sats}
-      
 
 if __name__ == "__main__":
 

@@ -45,6 +45,8 @@ class Task:
         self.simultaneous_collects_required = 0
         self.storage_size = 0
         self.r_LP_P = np.zeros(3)
+        self._is_task_complete = False
+        self.task_fail_count = 0
 
     @property
     def id(self):
@@ -70,6 +72,9 @@ class Task:
     def is_collection(self):
         return self.task_type == TaskType.RF or self.task_type == TaskType.IMAGING
     
+    def get_task_type_str(self):
+        return TaskType.to_str(self.task_type)
+
     @property
     def is_access_task(self):
         """
@@ -84,7 +89,6 @@ class Task:
         return 1
     
     def collect(self, satellite, collect_start_time, collect_end_time):
-        satellite.task_started(self)
         self.sats_collecting.append((satellite, collect_start_time, collect_end_time))
 
     def reset(self):
@@ -93,9 +97,11 @@ class Task:
     def task_info(self):
         info = {
             'id': self.id,
-            'task_type': TaskType.to_str(self.task_type),
+            'task_type_str': TaskType.to_str(self.task_type),
+            'task_type': self.task_type,
             'sats_collecting': [sat.id for sat, _, _ in self.sats_collecting],
             'is_data_downlink': self.is_data_downlink,
+            'is_access_task': self.is_access_task,
             'is_noop': self.is_noop,
             'is_charge': self.is_charge,
             'is_collection': self.is_collection,
@@ -104,14 +110,16 @@ class Task:
             'priority': 0,
             'simultaneous_collects_required': 0,
             'storage_size': 0,
-            'is_data_downlink': False,
             'task_duration': 0,
             'task_complete': False,
             'task_reward': 0,
+            'task_fail_count': self.task_fail_count,
         }
         return info
-
     
+    def complete(self, satellite, end_time):
+        # Called by each satellite that attempted to complete the task
+        pass 
 
 
 class PositionTask(Task):
@@ -205,7 +213,6 @@ class CollectTask(PositionTask):
         self.priority = priority
         self.simultaneous_collects_required = simultaneous_collects_required
         self.storage_size = storage_size # In MB
-        self._task_complete = False
 
     def task_info(self):
         info = PositionTask.task_info(self)
@@ -258,32 +265,21 @@ class CollectTask(PositionTask):
             min_elev=config['task_min_elev']
         )
     
+    def _task_complete(self):
+        self._is_task_complete = True
 
     @property
     def task_complete(self):
-        return self._task_complete    
+        return self._is_task_complete 
+
 
     def step(self):
         reward = self.get_reward()
-        if self.is_collection_valid():
-            success_count = 0
-            # Let the satellites know they did this task
-            for satellite, _, _ in self.sats_collecting:
-                if satellite.can_complete_task(self):
-                    satellite.task_completed(self)
-                    success_count += 1
-                else:
-                    satellite.task_failed(self)
 
-            if not self.is_data_downlink and success_count >= self.simultaneous_collects_required:
-                self._task_complete = True
-            elif not self.is_data_downlink:
-                print("Failed task due to stats not having storage, this was not expected at this point")
-                raise Exception("Failed task due to stats not having storage, this was not expected at this point")
-        else:
-            # Let the satellites know they failed this task
-            for satellite, _, _ in self.sats_collecting:
-                satellite.task_failed(self)
+        if self.is_collection_valid():
+            self._task_complete()
+        elif len(self.sats_collecting) > 0:
+            self.task_fail_count += 1
 
         self.reset()
         return reward   
@@ -292,7 +288,7 @@ class CollectTask(PositionTask):
         valid_collections = 0
         for satellite, collect_start_time, collect_end_time in self.sats_collecting:
             # Checks things like storage
-            if satellite.can_complete_task(self):
+            if satellite.in_valid_state():
                 valid_collections += self.get_window(satellite, time=collect_start_time)
         return valid_collections
     
@@ -316,10 +312,6 @@ class CollectTask(PositionTask):
             reward = self.priority
         return reward
     
-
-
-
-
     
 class DownlinkTask(PositionTask):
     def __init__(self, name, r_LP_P, priority, task_duration, max_step_duration, min_elev):
@@ -370,7 +362,6 @@ class DownlinkTask(PositionTask):
             # Checks things like storage
             if satellite.can_complete_task(self):
                 valid_collections += self.get_window(satellite, time=collect_start_time)
-        print(f"Valid collections for Downlink: {valid_collections}")
         return valid_collections
     
     def is_task_possible_in_window(self, satellite, window_index):
@@ -379,6 +370,10 @@ class DownlinkTask(PositionTask):
         if self.get_window(satellite, window_index=window_index) == 1:
             return True
         return False
+    
+    def _task_complete(self):
+        # Downlink tasks are never complete
+        self._is_task_complete = False
     
     def task_info(self):
         info = PositionTask.task_info(self)
@@ -417,12 +412,19 @@ class ChargeTask(Task):
         return reward   
 
     def count_valid_collections(self):
-        # TODO: Check if a sat is in eclipse
-        return len(self.sats_collecting)
+        valid_count = 0
+        for satellite, _, _ in self.sats_collecting:
+            if not satellite.in_eclipse():
+                valid_count += 1
+        return valid_count
     
     def is_task_possible_in_window(self, satellite, window_index):
         # Why do i have to valid check methods?
         return True
+    
+    def _task_complete(self):
+        # Charge tasks are never complete
+        self._is_task_complete = False
     
     def task_info(self):
         info = super().task_info()
@@ -461,6 +463,10 @@ class DesatTask(Task):
     def is_task_possible_in_window(self, satellite, window_index):
         return True
     
+    def _task_complete(self):
+        # Desat tasks are never complete
+        self._is_task_complete = False
+    
     def step(self):
         reward = self.get_reward()
         self.reset()
@@ -494,6 +500,10 @@ class EmptyTask(Task):
     
     def is_task_possible_in_window(self, satellite, window_index):
         return True
+    
+    def _task_complete(self):
+        # Noop tasks are never complete
+        self._is_task_complete = False
 
     def step(self):
         reward = self.get_reward()

@@ -11,85 +11,46 @@ from rl.tasks.observation import Observations
 
 class TaskManager:
 
-    def __init__(self, satellites, config, action_def):
+    def __init__(self, config, action_def):
         self.config = config
         self.max_step_duration = config['max_step_duration']
         self.max_sat_coordination = config['max_sat_coordination']
         self.n_access_windows = config['n_access_windows']
 
         self.window_calculation_time = 0
-        
-        self.action_def = action_def
-        self.current_tasks_by_sat = {}
-        self.satellites = satellites
         self.n_tasks_collected = 0
         self.cumlitive_reward = 0
 
-        self.action_index_to_sat = {i:sat for i, sat in enumerate(satellites)}
-
-
-    def get_observations(self, current_time):
-        for sat in self.satellites:
-            self.calculate_access_windows(sat, calculation_start=current_time, duration=self.max_step_duration * self.n_access_windows)
-
-        self.current_tasks_by_sat = {}
-        for satellite in self.satellites:
-            self.current_tasks_by_sat[satellite.id] = self.get_upcoming_tasks(satellite, current_time)
-        self.observation = Observations(current_time, self.current_tasks_by_sat, self.satellites, self.action_def, self.config, self.action_index_to_sat)
-        return self.observation
+    def get_observations(self, satellite, current_time):
+        self.calculate_access_windows(satellite, calculation_start=current_time, duration=self.max_step_duration * self.n_access_windows)
+        upcoming_tasks = self.get_upcoming_tasks(satellite, current_time)
+        observation = Observations(current_time, upcoming_tasks, satellite, self.config)
+        return observation
     
-
     def reset(self):
         self.n_tasks = random.randint(self.config['min_tasks'], self.config['max_tasks'])
         self.tasks = self.get_random_tasks(self.n_tasks)
-        # Add empty tasks to support noop and if all task are collected
-        self.tasks.extend([EmptyTask(priority=self.config['noop_task_priority']) for _ in range(self.n_access_windows)])
-        self.current_tasks_by_sat = {}
-        observations = self.get_observations(0.0)
         self.n_tasks_collected = 0
         self.cumlitive_reward = 0
-        return observations, {
-            'action_index_to_sat': {i:sat.id for i, sat in self.action_index_to_sat.items()},
-        }
 
-    def step(self, actions, start_time, end_time):
-
-        current_window_index = int(start_time // self.max_step_duration)
-
-        info = {sat.id: sat.get_observation() for sat in self.satellites}
-        info['action_index_to_sat'] = {i:sat.id for i, sat in self.action_index_to_sat.items()}
-
+    def task_manager_complete_actions(self, actions, start_time, end_time):
         reward = 0
-        action_to_task = self.observation.action_to_task()
-
-        for i, action in enumerate(actions):
-            sat = self.action_index_to_sat[i]
-            task = action_to_task[sat.id][action]
-            task.collect(sat, start_time, end_time)
-
-        for i, action in enumerate(actions):
-            sat = self.action_index_to_sat[i]
-            task = action_to_task[sat.id][action]
-            
-            info[sat.id]['task_being_collected'] = task.task_info()
-            info[sat.id]['task_being_collected']['current_window_index'] = current_window_index
-            info[sat.id]['task_being_collected']['task_has_window'] = task.get_window(sat, window_index=current_window_index)
-            info[sat.id]['task_reward'] = task.get_reward()
-            self.n_tasks_collected += 1 if task.task_complete else 0
-
         for task in self.tasks:
             reward += task.step()
 
         self.cumlitive_reward += reward
-        
-        # Remove tasks that have been completed
         self.tasks = [task for task in self.tasks if not task.task_complete]
+
         observations = self.get_observations(end_time)
+        return observations, reward
 
-        info['cum_reward'] = self.cumlitive_reward
-        info['n_tasks_collected'] = self.n_tasks_collected
-        return observations, reward, info
-
+    def step(self):
+        reward = 0
+        for task in self.tasks:
+            reward += task.step()
+        self.cumlitive_reward += reward
+        self.tasks = [task for task in self.tasks if not task.task_complete]
+        return reward
 
     def get_random_tasks(self, n_targets, radius=orbitalMotion.REQ_EARTH * 1e3):
         tasks = []
@@ -98,6 +59,7 @@ class TaskManager:
         tasks.extend(DownlinkTask.create_data_downlink_tasks(self.config))
         tasks.append(ChargeTask.create_charge_task(self.config))
         tasks.append(DesatTask.create_desat_task(self.config))
+        tasks.extend([EmptyTask(priority=self.config['noop_task_priority']) for _ in range(self.n_access_windows)])
         return tasks
 
     def get_upcoming_tasks(self, satellite, current_time):
@@ -109,8 +71,8 @@ class TaskManager:
                     upcoming_tasks.append((window_index, task))
             else:
                 # Task that are not based on location are always available
-                upcoming_tasks.append((0, task))
-        print(f"Upcoming tasks length: {len(upcoming_tasks)}")
+                # Use the current window index to mark as available e.g (current_time // max_step_duration)
+                upcoming_tasks.append((current_time // self.max_step_duration, task))
         return upcoming_tasks
             
 
@@ -125,10 +87,8 @@ class TaskManager:
         calculation_end = self.max_step_duration * np.ceil(
             calculation_end / self.max_step_duration
         )
-        print(f"Calculating windows from {calculation_start} to {calculation_end}")
 
         r_BP_P_interp = satellite.get_r_BP_P_interp(calculation_end)
-        # print(f"Interpolator: {r_BP_P_interp}")
         window_calc_span = np.logical_and(
             r_BP_P_interp.x >= calculation_start - 1e-9,
             r_BP_P_interp.x <= calculation_end + 1e-9,
@@ -243,5 +203,3 @@ class TaskManager:
             new_windows.append((t1, t2))
 
         return new_windows
-
-    

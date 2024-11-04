@@ -48,15 +48,12 @@ class SatelliteTasking(Env):
 
     def reset(self, seed=None, options=None):
         self.simulator = Simulator(self.config, self.action_def)
-        observations, info = self.simulator.reset()
-        return observations, info
+        observations = self.simulator.reset()
+        return observations, {}
 
     def step(self, actions):
-
         next_obs, reward, info = self.simulator.step(actions)
-
         return next_obs, reward, self.simulator.done, not self.simulator.is_alive(), info
-
 
     def render(self) -> None:  # pragma: no cover
         """No rendering implemented."""
@@ -66,6 +63,10 @@ class SatelliteTasking(Env):
         """Try to cleanly delete everything."""
         if self.simulator is not None:
             del self.simulator
+
+    def get_debug_observation(self):
+        return self.simulator.get_debug_observation()
+
 
 
 def main(config):
@@ -78,20 +79,14 @@ def main(config):
     total_reward = 0
 
     step = 0
-    while not done and not terminated:
-        print(f"")
+    while True: #not done and not terminated:
         action = [step % 4] * config['env']['n_sats']
-        # action = [0] * config['env']['n_sats']
         obs, reward, done, terminated, info = env.step(action)
-
-        # print(f"reward: {reward}")
-        # print(f"done: {done}")
-        # print(f"terminated: {terminated}")
-        # print(f"info: {info}")
-        pprint(info)
-
         total_reward += reward
         step += 1
+
+        # Wait on input to continue
+        input("Press Enter to continue...")
             
 
 

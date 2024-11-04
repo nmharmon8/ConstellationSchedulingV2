@@ -40,13 +40,13 @@ class Simulator(SimulationBaseClass.SimBaseClass):
         self.n_sats = config['n_sats']
 
         
-
         self.fsw_list = {}
         self.dynamics_list = {}
         self.world = GroundStationWorldModel(self, self.sim_rate, **get_default_world_args())
+        self.task_manager = TaskManager(self.config, self.action_def)
         self.utc_init = datetime.now().strftime("%Y %b %d %H:%M:%S.%f (UTC)")
         self.satellites = [create_random_satellite(f"EO-{i}", simulator=self, utc_init=self.utc_init) for i in range(self.n_sats)]
-        self.task_manager = TaskManager(self.satellites, self.config, self.action_def)
+        
         self.cum_reward = 0
 
         self.InitializeSimulation()
@@ -54,48 +54,106 @@ class Simulator(SimulationBaseClass.SimBaseClass):
         self.ExecuteSimulation()
 
 
-    # def get_sat_info(self):
-    #     sat_info = {}
-    #     #  r_BP_P = sat.trajectory.r_BP_P(current_time)
-    #     #     lat, lon = ecef_to_latlon(r_BP_P[0], r_BP_P[1], r_BP_P[2])
-    #     for sat in self.satellites:
-    #         sat_info[sat.id] = sat.get_info()
-    #     return sat_info
+    def get_sat_info(self):
+        sat_info = {}
+        for sat in self.satellites:
+            sat_info[sat.id] = sat.get_info()
+        return sat_info
         
-  
-
     def reset(self):
         assert self.sim_time_ns == 0, "Simulation cannot be reset, you must create a new instance"
+        self.task_manager.reset()
+        # Get observations
+        end_time = self.sim_time_ns + mc.sec2nano(self.max_step_duration_sec)
+        observations = []
+        for sat in self.satellites:
+            observations.append(self.task_manager.get_observations(sat, end_time * mc.NANO2SEC).get_observations_numpy())
+        observations = np.stack(observations, axis=0)
+        return observations
 
-        observation, info = self.task_manager.reset()
-
-        info['observation'] = observation.get_info_observation_dict()
-        self.last_obs = observation
-        
-        return observation.get_observation_numpy(), info
     
-
     def is_alive(self):
         return all(sat.is_alive() for sat in self.satellites)
-
 
     def step(self, actions):
 
         # Simulation time
         end_time = self.sim_time_ns + mc.sec2nano(self.max_step_duration_sec)
 
-        tasks_observations, reward, tasks_info = self.task_manager.step(actions, self.sim_time_ns * mc.NANO2SEC, end_time * mc.NANO2SEC)
-        self.cum_reward += reward
+        info = {
+            'actions': actions,
+            'start_time': self.sim_time_ns * mc.NANO2SEC,
+            'end_time': end_time * mc.NANO2SEC,
+            'satellite_in_order': [sat.id for sat in self.satellites],
+            'init_observation': {},
+            'init_satellites': {},
+            'init_action_tasks': {},
+            'end_observation': {},
+            'end_satellites': {},
+            'end_action_tasks': {},
+        }
 
-        tasks_info['observation'] = self.last_obs.get_info_observation_dict()
-        self.last_obs = tasks_observations
+        # Collect Info
+        for sat, action_idx in zip(self.satellites, actions):
+            observation = self.task_manager.get_observations(sat, self.sim_time_ns * mc.NANO2SEC)
+            info['init_observation'][sat.id] = observation.get_observations_info()
+            info['init_satellites'][sat.id] = sat.get_info()
+            task, _ = observation.action_to_task(action_idx)
+            info['init_action_tasks'][sat.id] = task.task_info()
 
+        # Start actions
+        sat_tasks = []
+        for sat, action_idx in zip(self.satellites, actions):
+            observation = self.task_manager.get_observations(sat, self.sim_time_ns * mc.NANO2SEC)
+            task, window_offset = observation.action_to_task(action_idx)
+            sat.start_action(task, window_offset, self.sim_time_ns * mc.NANO2SEC, end_time * mc.NANO2SEC)
+            sat_tasks.append((sat, task))
 
+        # Run simulation to take the actions
         print(f"FSW: Going to run simulation from {self.sim_time_ns} to {end_time} ")
         self.ConfigureStopTime(end_time)
         self.ExecuteSimulation()
-      
-        return tasks_observations.get_observation_numpy(), reward, tasks_info
+
+        # Complete the actions
+        for sat, task in sat_tasks:
+            sat.complete_action(task, end_time * mc.NANO2SEC)
+
+        # Step the task manager to calculate the reward
+        reward = self.task_manager.step()
+
+        # Collect Info
+        for sat, task in sat_tasks:
+            observation = self.task_manager.get_observations(sat, end_time * mc.NANO2SEC)
+            info['end_observation'][sat.id] = observation.get_observations_info()
+            info['end_satellites'][sat.id] = sat.get_info()
+            info['end_action_tasks'][sat.id] = task.task_info()
+        info['reward'] = reward
+
+        # Get observations
+        observations = []
+        for sat in self.satellites:
+            observations.append(self.task_manager.get_observations(sat, end_time * mc.NANO2SEC).get_observations_numpy())
+        observations = np.stack(observations, axis=0)
+        
+        return observations, reward, info
+    
+    def get_debug_observation(self):
+        sat_observations = {
+            'satellite_observation': {},
+            'normalization_terms': self.config['observation_normalization_terms'],
+            'observation_keys': self.config['observation_keys'],
+        }
+        for sat in self.satellites:
+            observations = self.task_manager.get_observations(sat, self.sim_time_ns * mc.NANO2SEC)
+            sat_observations['satellite_observation'][sat.id] = observations.get_debug_observation()
+        return sat_observations
+
+    
+    # observations = []
+    # for sat in self.satellites:
+    #     observations.append(self.task_manager.get_observations(sat, end_time * mc.NANO2SEC).get_observations_numpy())
+    # observations = np.stack(observations, axis=0)
+    # return observations
     
 
     @property

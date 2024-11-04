@@ -73,12 +73,14 @@ env:
     - 'priority'
     - 'n_required_collects'
     - 'is_data_downlink'
-    - 'task_storage_size'
-    # - 'storage_level'
-    # - 'storage_capacity'
-    # - 'storage_percentage'
-    # - 'storage_after_task'
     - 'is_charge_task'
+    - 'is_desat_task'
+    - 'wheel_speed_1'
+    - 'wheel_speed_2'
+    - 'wheel_speed_3'
+    - 'power_percentage'
+    - 'storage_percentage'
+    - 'in_eclipse'
   observation_defaults:
     x: 0
     y: 0
@@ -87,12 +89,16 @@ env:
     priority: -1
     n_required_collects: 0
     is_data_downlink: 0
-    storage_level: 0
-    storage_capacity: 0
-    storage_percentage: 0
     task_storage_size: 0
-    storage_after_task: 0
     is_charge_task: 0
+    in_eclipse: 0
+    is_desat_task: 0
+    wheel_speed_1: 0
+    wheel_speed_2: 0
+    wheel_speed_3: 0
+    power_percentage: 0
+    storage_percentage: 0
+
   observation_normalization_terms:
     x: 1
     y: 1
@@ -101,12 +107,16 @@ env:
     priority: 1
     n_required_collects: *max_sat_coordination
     is_data_downlink: 1
-    storage_level: 40000000000
-    storage_capacity: 40000000000
-    storage_percentage: 1.0
     task_storage_size: *task_max_storage_size
-    storage_after_task: 40000000000
     is_charge_task: 1
+    in_eclipse: 1
+    is_desat_task: 1
+    wheel_speed_1: 1.2
+    wheel_speed_2: 1.2
+    wheel_speed_3: 1.2
+    power_percentage: 1
+    storage_percentage: 1
+
   groundStations:
     - name: Boulder
       lat: 40.009971
