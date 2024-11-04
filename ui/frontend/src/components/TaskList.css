@@ -10,7 +10,8 @@
     box-shadow: -2px 0 5px rgba(0, 0, 0, 0.5);
     display: flex;
     flex-direction: column;
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: auto;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
@@ -48,16 +49,19 @@
 .task-list-content {
     flex: 1 1 auto;
     overflow-y: auto;
+    overflow-x: hidden;
     padding-right: 5px;
+    padding-left: 5px;
     width: 100%;
     box-sizing: border-box;
 }
 
 .task-items {
-    list-style: none;
-    padding: 0;
-    padding-right: 10px;
-    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .task-item {
@@ -66,12 +70,19 @@
     border-radius: 8px;
     padding: 15px;
     margin-bottom: 12px;
-    margin-right: 5px;
-    transition: background-color 0.3s;
+    cursor: pointer !important;
+    user-select: none;
+    transition: all 0.2s ease-in-out;
+    position: relative;
+    z-index: 1;
+    width: auto;
+    box-sizing: border-box;
 }
 
 .task-item:hover {
-    background-color: #3e3e5d;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    background-color: #3e3e6d;
 }
 
 .task-header {
@@ -138,4 +149,169 @@
         bottom: 0;
         top: auto;
     }
+}
+
+/* Sorting Controls Styling */
+.sorting-controls {
+    background-color: #2e2e4d;
+    padding: 12px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    border: 1px solid #444;
+}
+
+/* Style for the FormControl and Select */
+.sorting-controls .MuiFormControl-root {
+    min-width: 200px;
+    margin-right: 16px;
+}
+
+.sorting-controls .MuiOutlinedInput-root {
+    background-color: #1e1e2f;
+    color: #ffffff;
+}
+
+.sorting-controls .MuiOutlinedInput-notchedOutline {
+    border-color: #444;
+}
+
+.sorting-controls .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline {
+    border-color: #00e6e6;
+}
+
+.sorting-controls .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline {
+    border-color: #00e6e6;
+}
+
+.sorting-controls .MuiInputLabel-root {
+    color: #cccccc;
+}
+
+.sorting-controls .MuiInputLabel-root.Mui-focused {
+    color: #00e6e6;
+}
+
+/* Style for the IconButton */
+.sorting-controls .MuiIconButton-root {
+    color: #cccccc;
+    background-color: #1e1e2f;
+    padding: 8px;
+}
+
+.sorting-controls .MuiIconButton-root:hover {
+    background-color: #3e3e6d;
+    color: #00e6e6;
+}
+
+/* Style for the Select Menu Items */
+.MuiMenu-paper {
+    background-color: #2e2e4d !important;
+    color: #ffffff !important;
+    border: 1px solid #444;
+}
+
+.MuiMenuItem-root {
+    color: #ffffff !important;
+}
+
+.MuiMenuItem-root:hover {
+    background-color: #3e3e6d !important;
+}
+
+.MuiMenuItem-root.Mui-selected {
+    background-color: #3e3e6d !important;
+}
+
+/* Add these new styles for failed tasks */
+.task-item.failed {
+    border: 1px solid #ff4444;
+    background: linear-gradient(
+        135deg,
+        rgba(46, 46, 77, 1) 0%,
+        rgba(255, 68, 68, 0.1) 100%
+    );
+    position: relative;
+    overflow: hidden;
+}
+
+.task-item.failed::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #ff4444, transparent);
+    animation: glowPulse 2s ease-in-out infinite;
+}
+
+.task-fail-count {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background-color: #ff4444;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.8em;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    box-shadow: 0 0 10px rgba(255, 68, 68, 0.3);
+    animation: fadeInOut 2s ease-in-out infinite;
+}
+
+.task-fail-count::before {
+    content: '⚠️';
+    font-size: 0.9em;
+}
+
+@keyframes glowPulse {
+    0% {
+        opacity: 0.5;
+        box-shadow: 0 0 5px #ff4444;
+    }
+    50% {
+        opacity: 1;
+        box-shadow: 0 0 15px #ff4444;
+    }
+    100% {
+        opacity: 0.5;
+        box-shadow: 0 0 5px #ff4444;
+    }
+}
+
+@keyframes fadeInOut {
+    0% {
+        opacity: 0.8;
+    }
+    50% {
+        opacity: 1;
+    }
+    100% {
+        opacity: 0.8;
+    }
+}
+
+/* Update task-metric for failed tasks */
+.task-item.failed .task-metric.fail-count {
+    color: #ff4444;
+    font-weight: bold;
+    background-color: rgba(255, 68, 68, 0.1);
+    padding: 8px;
+    border-radius: 6px;
+    margin-top: 8px;
+    border: 1px solid rgba(255, 68, 68, 0.3);
+}
+
+/* Enhance hover effect for failed tasks */
+.task-item.failed:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(255, 68, 68, 0.2);
+    background: linear-gradient(
+        135deg,
+        rgba(46, 46, 77, 1) 0%,
+        rgba(255, 68, 68, 0.15) 100%
+    );
 }

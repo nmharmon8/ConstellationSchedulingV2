@@ -1,0 +1,206 @@
+{
+    "debug": {
+        "normalization_terms": {
+            "is_charge_task": 1,
+            "is_data_downlink": 1,
+            "n_required_collects": 1,
+            "priority": 1,
+            "storage_after_task": 40000000000,
+            "storage_capacity": 40000000000,
+            "storage_level": 40000000000,
+            "storage_percentage": 1,
+            "task_storage_size": 1000,
+            "window_index_offset": 200,
+            "x": 1,
+            "y": 1,
+            "z": 1
+        },
+        "observation_keys": [
+            "x",
+            "y",
+            "z",
+            "window_index_offset",
+            "priority",
+            "n_required_collects",
+            "is_data_downlink",
+            "task_storage_size",
+            "is_charge_task"
+        ],
+        "satellite_observation": {
+            "EO-0_140173241604544": {
+                "numpy": [
+                    [
+                        1,
+                        0,
+                        0.8414709848078965,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        1
+                    ],
+                    [
+                        1,
+                        0,
+                        0.8414709848078965,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0
+                    ]
+                ],
+                "observations": [
+                    {
+                        "is_charge_task": 1,
+                        "is_data_downlink": 0,
+                        "n_required_collects": 0,
+                        "priority": 0,
+                        "storage_after_task": 40000000000,
+                        "task_id": "ChargeTask_140173241487696",
+                        "task_storage_size": 0,
+                        "task_type": 4,
+                        "window_index": 0,
+                        "window_index_offset": 0,
+                        "x": 1,
+                        "y": 0,
+                        "z": 0.8414709848078965
+                    },
+                    {
+                        "is_charge_task": 0,
+                        "is_data_downlink": 0,
+                        "n_required_collects": 0,
+                        "priority": 0,
+                        "storage_after_task": 40000000000,
+                        "task_id": "DesatTask_140173241886144",
+                        "task_storage_size": 0,
+                        "task_type": 5,
+                        "window_index": 0,
+                        "window_index_offset": 0,
+                        "x": 1,
+                        "y": 0,
+                        "z": 0.8414709848078965
+                    }
+                ]
+            },
+            "EO-1_140173241604880": {
+                "numpy": [
+                    [
+                        1,
+                        0,
+                        0.8414709848078965,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        1
+                    ],
+                    [
+                        1,
+                        0,
+                        0.8414709848078965,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0
+                    ]
+                ],
+                "observations": [
+                    {
+                        "is_charge_task": 1,
+                        "is_data_downlink": 0,
+                        "n_required_collects": 0,
+                        "priority": 0,
+                        "storage_after_task": 40000000000,
+                        "task_id": "ChargeTask_140173241487696",
+                        "task_storage_size": 0,
+                        "task_type": 4,
+                        "window_index": 0,
+                        "window_index_offset": 0,
+                        "x": 1,
+                        "y": 0,
+                        "z": 0.8414709848078965
+                    },
+                    {
+                        "is_charge_task": 0,
+                        "is_data_downlink": 0,
+                        "n_required_collects": 0,
+                        "priority": 0,
+                        "storage_after_task": 40000000000,
+                        "task_id": "DesatTask_140173241886144",
+                        "task_storage_size": 0,
+                        "task_type": 5,
+                        "window_index": 0,
+                        "window_index_offset": 0,
+                        "x": 1,
+                        "y": 0,
+                        "z": 0.8414709848078965
+                    }
+                ]
+            },
+            "EO-2_140173241633040": {
+                "numpy": [
+                    [
+                        1,
+                        0,
+                        0.8414709848078965,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        1
+                    ],
+                    [
+                        1,
+                        0,
+                        0.8414709848078965,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0
+                    ]
+                ],
+                "observations": [
+                    {
+                        "is_charge_task": 1,
+                        "is_data_downlink": 0,
+                        "n_required_collects": 0,
+                        "priority": 0,
+                        "storage_after_task": 40000000000,
+                        "task_id": "ChargeTask_140173241487696",
+                        "task_storage_size": 0,
+                        "task_type": 4,
+                        "window_index": 0,
+                        "window_index_offset": 0,
+                        "x": 1,
+                        "y": 0,
+                        "z": 0.8414709848078965
+                    },
+                    {
+                        "is_charge_task": 0,
+                        "is_data_downlink": 0,
+                        "n_required_collects": 0,
+                        "priority": 0,
+                        "storage_after_task": 40000000000,
+                        "task_id": "DesatTask_140173241886144",
+                        "task_storage_size": 0,
+                        "task_type": 5,
+                        "window_index": 0,
+                        "window_index_offset": 0,
+                        "x": 1,
+                        "y": 0,
+                        "z": 0.8414709848078965
+                    }
+                ]
+            }
+        }
+    }
+}

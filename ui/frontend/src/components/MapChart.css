@@ -1,21 +1,12 @@
 .map-container {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  background-color: #0A192F;
-  /* Remove padding to fill entire space */
-  padding: 0;
-  /* Remove border radius to fill corners */
-  border-radius: 0;
-  box-shadow: 0 0 20px rgba(0, 255, 255, 0.1);
-  border: 1px solid rgba(0, 255, 255, 0.1);
   display: flex;
   flex-direction: column;
+  align-items: center;
+  width: 100%;
 }
 
 .legend {
-  margin: 20px;
-  color: #64FFDA;
+  margin-bottom: 20px;
 }
 
 .legend-title {
@@ -52,18 +43,12 @@
 
 .map-wrapper {
   position: relative;
-  flex: 1;
-  width: 100%;
-  height: 100%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
+  width: 98%;
 }
 
 .composable-map {
   width: 100%;
-  height: 100%;
-  background-color: transparent;
+  height: auto;
 }
 
 .composable-map svg {
@@ -104,10 +89,23 @@
   font-size: 12px;
 }
 
-/* Note: react-tooltip styles need to be targeted differently */
-:root {
-  --tooltip-background-color: #233554;
-  --tooltip-color: #64FFDA;
+/* Spinner Overlay */
+.spinner-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: rgba(10, 25, 47, 0.6);
+  border-radius: 8px;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
+.tooltip {
+  /* Existing tooltip styles */
 }
 
 #task-tooltip {
@@ -117,4 +115,247 @@
   border-radius: 4px !important;
   padding: 8px 12px !important;
   font-size: 0.875rem !important;
+}
+
+.agent-control-bar {
+  width: 100%;
+  max-width: 600px; /* Should match AgentControlBar.css */
+  margin-top: 20px;
+}
+
+/* Add these styles */
+.collection-line {
+}
+
+.collection-box {
+  opacity: 0.8;
+  transform-origin: center;
+}
+
+/* Add these new styles */
+@keyframes pulse {
+  0% {
+    stroke-width: 1;
+    stroke-opacity: 1;
+    r: 4;
+  }
+  70% {
+    stroke-width: 2;
+    stroke-opacity: 0.5;
+    r: 8;
+  }
+  100% {
+    stroke-width: 1;
+    stroke-opacity: 0;
+    r: 12;
+  }
+}
+
+.failed-task-pulse {
+  fill: none;
+  stroke: #ff0000;
+  animation: pulse 1.5s ease-out infinite;
+}
+
+.failed-task-marker {
+  fill: #ff0000;
+}
+
+.failed-task-x {
+  stroke: white;
+  stroke-width: 1;
+}
+
+/* Satellite Modal Styles */
+.satellite-modal {
+  background-color: transparent !important;
+}
+
+.satellite-modal .MuiDialog-paper {
+  background-color: rgba(10, 25, 47, 0.95) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid rgba(100, 255, 218, 0.1) !important;
+  border-radius: 8px !important;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5) !important;
+  max-width: 400px !important; /* Make modal smaller to see more of the map */
+  margin: 32px !important;
+  position: fixed !important;
+  right: 0 !important;
+  top: 0 !important;
+  transform: none !important;
+}
+
+.satellite-modal-header {
+  background: var(--panel-gradient);
+  border-bottom: 1px solid rgba(100, 255, 218, 0.1);
+  padding: 16px 24px;
+}
+
+.satellite-modal-title {
+  color: var(--accent-blue);
+  font-size: 1.25rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+}
+
+.satellite-modal-content {
+  background: rgba(17, 34, 64, 0.5) !important;
+  padding: 24px;
+}
+
+.satellite-info-section {
+  margin-bottom: 24px;
+  background: rgba(17, 34, 64, 0.3);
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid rgba(100, 255, 218, 0.1);
+  box-shadow: 0 0 20px rgba(100, 255, 218, 0.1);
+}
+
+.satellite-info-title {
+  color: var(--accent-blue);
+  font-size: 1rem;
+  margin-bottom: 16px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 500;
+}
+
+.satellite-metric {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background-color: rgba(100, 255, 218, 0.05);
+  border-radius: 4px;
+  margin-bottom: 8px;
+  transition: all 0.2s ease;
+}
+
+.satellite-metric:hover {
+  background-color: rgba(100, 255, 218, 0.1);
+}
+
+.satellite-metric-label {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.satellite-metric-value {
+  color: var(--text-primary);
+  font-family: 'Roboto Mono', monospace;
+  font-size: 0.9rem;
+}
+
+.satellite-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  margin-top: 12px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  box-shadow: var(--border-glow);
+}
+
+.satellite-status.in-eclipse {
+  background-color: rgba(44, 31, 70, 0.8);
+  color: #ffd700;
+  border: 1px solid rgba(255, 215, 0, 0.3);
+}
+
+.satellite-status.in-sunlight {
+  background-color: rgba(31, 70, 44, 0.8);
+  color: var(--accent-blue);
+  border: 1px solid rgba(100, 255, 218, 0.3);
+}
+
+.satellite-modal-actions {
+  background: var(--panel-gradient);
+  border-top: 1px solid rgba(100, 255, 218, 0.1);
+  padding: 16px 24px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.satellite-modal-button {
+  color: var(--accent-blue) !important;
+  border-color: var(--accent-blue) !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  font-weight: 500 !important;
+  padding: 6px 20px !important;
+}
+
+.satellite-modal-button:hover {
+  background-color: rgba(100, 255, 218, 0.1) !important;
+  box-shadow: var(--border-glow) !important;
+}
+
+/* Progress bar styles */
+.storage-progress {
+  height: 6px !important;
+  border-radius: 3px !important;
+  background-color: rgba(0, 230, 230, 0.1) !important;
+  margin-bottom: 8px !important;
+}
+
+.storage-progress .MuiLinearProgress-bar {
+  background-color: var(--accent-blue) !important;
+}
+
+.power-progress {
+  height: 6px !important;
+  border-radius: 3px !important;
+  background-color: rgba(255, 215, 0, 0.1) !important;
+  margin-bottom: 8px !important;
+}
+
+.power-progress .MuiLinearProgress-bar {
+  background-color: #ffd700 !important;
+}
+
+/* Update the satellite marker styles */
+.satellite-marker {
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.satellite-click-area {
+  cursor: pointer;
+  pointer-events: all;
+  transition: all 0.3s ease;
+}
+
+.satellite-click-area:hover {
+  fill: rgba(255, 215, 0, 0.1);
+}
+
+.satellite-marker:hover {
+  transform: scale(1.2);
+}
+
+/* Update the scale of the core elements */
+.satellite-core {
+  fill: #FFD700;
+  filter: drop-shadow(0 0 4px rgba(255, 215, 0, 0.7));
+  transform-origin: center;
+}
+
+.satellite-ring {
+  fill: none;
+  stroke: #64FFDA;
+  stroke-width: 0.5;
+  opacity: 0.8;
+  transform-origin: center;
+}
+
+.satellite-panels {
+  fill: #4A90E2;
+  stroke: #64FFDA;
+  stroke-width: 0.3;
+  filter: drop-shadow(0 0 2px rgba(100, 255, 218, 0.5));
+  transform-origin: center;
 }

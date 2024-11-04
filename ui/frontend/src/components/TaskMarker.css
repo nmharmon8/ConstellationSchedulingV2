@@ -1,0 +1,27 @@
+.task-marker {
+  stroke: #032706;
+  stroke-width: 1;
+  filter: drop-shadow(0 0 4px rgba(100, 255, 218, 0.5));
+}
+
+/* Failed Task Styles */
+.failed-task-pulse {
+  fill: none;
+  stroke: #ff0000;
+  animation: pulse 1.5s ease-out infinite;
+}
+
+.failed-task-marker { 
+  fill: #ff0000; 
+}
+
+.failed-task-x { 
+  stroke: white; 
+  stroke-width: 1; 
+}
+
+@keyframes pulse {
+  0% { stroke-width: 1; stroke-opacity: 1; r: 4; }
+  70% { stroke-width: 2; stroke-opacity: 0.5; r: 8; }
+  100% { stroke-width: 1; stroke-opacity: 0; r: 12; }
+} 

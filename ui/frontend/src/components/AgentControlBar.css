@@ -1,0 +1,42 @@
+.agent-control-bar {
+  display: flex;
+  align-items: center;
+  min-width: fit-content;
+}
+
+.button-group {
+  display: flex;
+  gap: 8px;
+}
+
+.small-button {
+  padding: 8px 16px;
+  font-size: 14px;
+  border-radius: 4px;
+}
+
+.start-pause-button {
+  background-color: #4CAF50; /* Green */
+  color: white;
+  border: none;
+  cursor: pointer;
+}
+
+.reset-button {
+  background-color: #f44336; /* Red */
+  color: white;
+  border: none;
+  cursor: pointer;
+}
+
+.start-pause-button:disabled,
+.reset-button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.error-message {
+  color: red;
+  margin-left: 16px;
+  font-size: 0.875rem;
+}

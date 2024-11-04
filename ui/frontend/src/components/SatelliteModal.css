@@ -1,0 +1,176 @@
+:root {
+  --modal-bg: rgba(26, 32, 44, 0.95);
+  --modal-border: #64FFDA;
+  --modal-text: #E2E8F0;
+  --modal-header: #90CDF4;
+  --modal-section: rgba(74, 85, 104, 0.3);
+  --progress-bg: rgba(74, 85, 104, 0.2);
+  --storage-color: #4FD1C5;
+  --power-color: #F6AD55;
+  --eclipse-color: #805AD5;
+  --sunlight-color: #F6E05E;
+}
+
+.satellite-modal .MuiDialog-paper {
+  background: var(--modal-bg);
+  border: 1px solid var(--modal-border);
+  box-shadow: 0 0 20px rgba(100, 255, 218, 0.2);
+  backdrop-filter: blur(8px);
+  border-radius: 12px;
+  color: var(--modal-text);
+  overflow: hidden;
+}
+
+.satellite-modal-header {
+  background: linear-gradient(90deg, rgba(100, 255, 218, 0.1), transparent);
+  border-bottom: 1px solid var(--modal-border);
+  padding: 16px 24px;
+}
+
+.satellite-modal-title {
+  color: var(--modal-header);
+  font-size: 1.5rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.satellite-modal-title::before {
+  content: '⚡';
+  font-size: 1.2rem;
+}
+
+.satellite-info-section {
+  background: var(--modal-section);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+  border: 1px solid rgba(100, 255, 218, 0.2);
+  position: relative;
+  overflow: hidden;
+}
+
+.satellite-info-section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg, var(--modal-border), transparent);
+}
+
+.satellite-info-title {
+  color: var(--modal-header);
+  font-size: 1.1rem;
+  font-weight: 500;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.satellite-metric {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 8px 0;
+  font-family: 'Courier New', monospace;
+}
+
+.satellite-metric-label {
+  color: rgba(226, 232, 240, 0.8);
+}
+
+.satellite-metric-value {
+  color: var(--modal-border);
+  font-weight: 600;
+}
+
+/* Progress Bars */
+.storage-progress {
+  height: 6px !important;
+  border-radius: 3px !important;
+  background-color: var(--progress-bg) !important;
+  margin-bottom: 8px !important;
+}
+
+.storage-progress .MuiLinearProgress-bar {
+  background-color: var(--storage-color) !important;
+  box-shadow: 0 0 10px var(--storage-color);
+}
+
+.power-progress {
+  height: 6px !important;
+  border-radius: 3px !important;
+  background-color: var(--progress-bg) !important;
+  margin-bottom: 8px !important;
+}
+
+.power-progress .MuiLinearProgress-bar {
+  background-color: var(--power-color) !important;
+  box-shadow: 0 0 10px var(--power-color);
+}
+
+/* Status Indicators */
+.satellite-status {
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-weight: 500;
+  text-align: center;
+  margin-bottom: 12px;
+  animation: pulse 2s infinite;
+}
+
+.in-eclipse {
+  background: rgba(128, 90, 213, 0.2);
+  border: 1px solid var(--eclipse-color);
+  color: var(--eclipse-color);
+}
+
+.in-sunlight {
+  background: rgba(246, 224, 94, 0.2);
+  border: 1px solid var(--sunlight-color);
+  color: var(--sunlight-color);
+}
+
+/* Modal Actions */
+.satellite-modal-actions {
+  border-top: 1px solid rgba(100, 255, 218, 0.2);
+  padding: 16px 24px;
+  background: linear-gradient(90deg, rgba(100, 255, 218, 0.05), transparent);
+}
+
+.satellite-modal-button {
+  color: var(--modal-border) !important;
+  border-color: var(--modal-border) !important;
+  text-transform: none !important;
+  padding: 6px 16px !important;
+}
+
+.satellite-modal-button:hover {
+  background: rgba(100, 255, 218, 0.1) !important;
+  box-shadow: 0 0 10px rgba(100, 255, 218, 0.2);
+}
+
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.7; }
+  100% { opacity: 1; }
+}
+
+/* Scrollbar Styling */
+.satellite-modal .MuiDialogContent-root::-webkit-scrollbar {
+  width: 8px;
+}
+
+.satellite-modal .MuiDialogContent-root::-webkit-scrollbar-track {
+  background: var(--progress-bg);
+  border-radius: 4px;
+}
+
+.satellite-modal .MuiDialogContent-root::-webkit-scrollbar-thumb {
+  background: var(--modal-border);
+  border-radius: 4px;
+} 
