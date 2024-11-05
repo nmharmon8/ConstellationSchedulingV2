@@ -15,6 +15,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 import SatelliteModal from './SatelliteModal';
 import DownlinkStation from './DownlinkStation';
 import SatelliteMarker from './SatelliteMarker';
+import TaskModal from './TaskModal';
 
 const STEP_DURATION = 3000; // 3 seconds
 
@@ -35,6 +36,7 @@ const MapChart = () => {
   const [currentPositions, setCurrentPositions] = useState({});
   const animationRef = useRef(null);
   const [selectedSatellite, setSelectedSatellite] = useState(null);
+  const [selectedTask, setSelectedTask] = useState(null);
 
   const taskColors = {
     RF: "#FF5722",
@@ -95,6 +97,14 @@ const MapChart = () => {
     setSelectedSatellite(null);
   };
 
+  const handleTaskClick = (task) => {
+    setSelectedTask(task);
+  };
+
+  const handleTaskModalClose = () => {
+    setSelectedTask(null);
+  };
+
   if (loading) {
     return <div>Loading map...</div>;
   }
@@ -105,13 +115,79 @@ const MapChart = () => {
         <div className="legend-items">
           {Object.entries(taskColors).map(([taskType, color]) => (
             <div key={taskType} className="legend-item">
-              <div
-                className="legend-dot"
-                style={{
-                  backgroundColor: color,
-                  boxShadow: `0 0 10px ${color}40`
-                }}
-              ></div>
+              {taskType === 'DATA_DOWNLINK' ? (
+                <svg className="legend-station" viewBox="-15 -12 30 24">
+                  <g>
+                    <circle
+                      r={5}
+                      className="downlink-base"
+                      style={{ 
+                        stroke: color,
+                        strokeWidth: "1.5",
+                        fill: "rgba(255, 255, 255, 0.3)" 
+                      }}
+                    />
+                    <rect
+                      x="-1.5"
+                      y="-4"
+                      width="3"
+                      height="4"
+                      style={{
+                        fill: color,
+                        opacity: "0.8"
+                      }}
+                    />
+                    <g transform="translate(0, -4) rotate(-30)">
+                      <path
+                        d="M 10 0 Q 0 12 -14 0"
+                        className="dish-main"
+                        style={{ 
+                          stroke: color,
+                          strokeWidth: "1.5",
+                          fill: "rgba(255, 255, 255, 0.2)"
+                        }}
+                      />
+                      <circle
+                        cx="0"
+                        cy="4"
+                        r="1.5"
+                        style={{
+                          fill: color,
+                          opacity: "0.9"
+                        }}
+                      />
+                      <line 
+                        x1="-6" 
+                        y1="1" 
+                        x2="0" 
+                        y2="4" 
+                        style={{ 
+                          stroke: color,
+                          strokeWidth: "1"
+                        }}
+                      />
+                      <line 
+                        x1="6" 
+                        y1="1" 
+                        x2="0" 
+                        y2="4" 
+                        style={{ 
+                          stroke: color,
+                          strokeWidth: "1"
+                        }}
+                      />
+                    </g>
+                  </g>
+                </svg>
+              ) : (
+                <div
+                  className="legend-dot"
+                  style={{
+                    backgroundColor: color,
+                    boxShadow: `0 0 10px ${color}40`
+                  }}
+                />
+              )}
               <span className="legend-text">{taskType}</span>
             </div>
           ))}
@@ -147,6 +223,7 @@ const MapChart = () => {
                 key={task.id}
                 color={taskColors[task.task_type_str]}
                 task={task}
+                onClick={() => handleTaskClick(task)}
               />
             ) : (
               <Marker
@@ -156,6 +233,7 @@ const MapChart = () => {
                 data-tooltip-content={`${task.task_type_str} (Priority: ${task.priority.toFixed(2)})${
                   task.task_fail_count > 0 ? ` - Failed ${task.task_fail_count} times` : ''
                 }`}
+                onClick={() => handleTaskClick(task)}
               >
                 <g>
                   {task.task_fail_count > 0 ? (
@@ -229,6 +307,12 @@ const MapChart = () => {
         open={!!selectedSatellite}
         onClose={handleModalClose}
         satelliteId={selectedSatellite}
+      />
+
+      <TaskModal 
+        task={selectedTask}
+        open={!!selectedTask}
+        onClose={handleTaskModalClose}
       />
     </div>
   );

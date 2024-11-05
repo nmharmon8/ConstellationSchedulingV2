@@ -11,24 +11,22 @@ const ObservationState = () => {
     startAutoStep 
   } = useAgent();
   const [selectedTask, setSelectedTask] = useState(null);
-  const [wasRunning, setWasRunning] = useState(false);
-
 
   const handleTaskClick = (task) => {
     console.log('Task clicked:', task);
     setSelectedTask(task);
-    if (isAutoRunning) {
-      setWasRunning(true);
-      pauseAutoStep();
-    }
   };
 
   const handleCloseModal = () => {
     console.log('Modal closed');
     setSelectedTask(null);
-    if (wasRunning) {
-      startAutoStep();
-      setWasRunning(false);
+  };
+
+  const handleWheel = (event) => {
+    if (event.deltaY !== 0) {
+      event.preventDefault();
+      const container = event.currentTarget;
+      container.scrollLeft += event.deltaY;
     }
   };
 
@@ -42,7 +40,10 @@ const ObservationState = () => {
   ));
 
   return (
-    <div className="observation-table-container">
+    <div 
+      className="observation-table-container"
+      onWheel={handleWheel}
+    >
       <table className="observation-table">
         <thead>
           <tr>

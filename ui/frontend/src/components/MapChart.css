@@ -28,6 +28,7 @@
 .legend-item {
   display: flex;
   align-items: center;
+  height: 24px;
 }
 
 .legend-dot {
@@ -35,6 +36,13 @@
   height: 20px;
   border-radius: 50%;
   margin-right: 5px;
+}
+
+.legend-station {
+  width: 30px;
+  height: 24px;
+  margin-right: 5px;
+  position: relative;
 }
 
 .legend-text {

@@ -164,9 +164,7 @@ class Satellite:
         print(sat_stats)
 
     def _task_started(self, task, window_offset):
-        if task.is_data_downlink: #and window_offset == 0:
-            # Have to manually check as down link is not based on lat, lon
-            print(f"FSW: Satellite {self.name} downlinking")
+        if task.is_data_downlink and window_offset == 0:
             self.fsw.action_downlink()
         elif task.is_charge:
             if not self.in_eclipse():

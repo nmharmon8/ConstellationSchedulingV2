@@ -4,7 +4,7 @@
   border-radius: 8px;
   border: 1px solid rgba(100, 255, 218, 0.1);
   box-shadow: var(--border-glow);
-  overflow: hidden;
+  overflow-x: auto;
 }
 
 .observation-table {
@@ -80,19 +80,44 @@
 /* Scrollbar styling */
 .observation-table-container::-webkit-scrollbar {
   width: 8px;
-  height: 8px;
+  height: 10px;
 }
 
 .observation-table-container::-webkit-scrollbar-track {
-  background: var(--secondary-dark);
+  background: rgba(17, 34, 64, 0.95);
+  border-radius: 4px;
+  border: 1px solid rgba(100, 255, 218, 0.1);
 }
 
 .observation-table-container::-webkit-scrollbar-thumb {
-  background: var(--accent-blue);
+  background: linear-gradient(90deg, 
+    rgba(100, 255, 218, 0.8) 0%,
+    var(--accent-blue) 100%
+  );
   border-radius: 4px;
+  border: 1px solid rgba(100, 255, 218, 0.2);
+  box-shadow: 0 0 5px rgba(100, 255, 218, 0.3);
 }
 
+.observation-table-container::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(90deg,
+    rgba(100, 255, 218, 1) 0%,
+    var(--accent-blue) 100%
+  );
+  box-shadow: 0 0 8px rgba(100, 255, 218, 0.5);
+}
 
 .task-cell.active {
   animation: pulse 2s infinite;
+}
+
+/* Add wheel scroll behavior */
+.observation-table-container {
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent-blue) rgba(17, 34, 64, 0.95);
+}
+
+/* Remove scrollbar arrows */
+.observation-table-container::-webkit-scrollbar-button {
+  display: none;
 }

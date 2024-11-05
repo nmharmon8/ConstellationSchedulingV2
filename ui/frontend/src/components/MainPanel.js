@@ -38,19 +38,6 @@ const MainPanel = () => {
     setOffset({ x: 0, y: 0 });
   };
 
-  const handleWheel = (event) => {
-    event.preventDefault(); // Prevent page scroll when zooming
-
-    // Zoom in when scrolling up, out when scrolling down
-    if (event.deltaY < 0) {
-      setZoom(prev => Math.min(prev + 0.1, 3)); // Smaller increment for smoother zoom
-    } else {
-      setZoom(prev => Math.max(prev - 0.1, 0.5));
-    }
-    // Reset panning on zoom
-    setOffset({ x: 0, y: 0 });
-  };
-
   // Define base dimensions for the map
   const baseWidth = 800; // in pixels
   const baseHeight = 600; // in pixels
@@ -254,7 +241,6 @@ const MainPanel = () => {
               userSelect: 'none',
             }}
             onMouseDown={handleMouseDown}
-            onWheel={handleWheel}
           >
             {/* Render the MapChart */}
             <Box

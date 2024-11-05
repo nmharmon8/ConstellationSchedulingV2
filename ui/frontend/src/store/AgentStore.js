@@ -163,6 +163,9 @@ export const AgentProvider = ({ children }) => {
       setInterpolatedPositions({});
       setError(null);
       setLoading(true);
+      setObservationInspector(null);
+      setCurrentTasksBeingExecuted({});
+      setCurrentActionsAndObs(null);
 
       if (isAutoRunning) {
         pauseAutoStep();

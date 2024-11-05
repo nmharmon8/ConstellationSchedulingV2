@@ -1,0 +1,87 @@
+/* Create new file with these styles */
+.task-modal {
+  pointer-events: none;
+}
+
+.task-modal .MuiDialog-paper {
+  pointer-events: auto;
+  background: var(--modal-bg);
+  border: 1px solid var(--modal-border);
+  box-shadow: 0 0 20px rgba(100, 255, 218, 0.2);
+  backdrop-filter: blur(8px);
+  border-radius: 12px;
+  color: var(--modal-text);
+  overflow: hidden;
+}
+
+.task-modal-header {
+  background: linear-gradient(90deg, rgba(100, 255, 218, 0.1), transparent);
+  border-bottom: 1px solid var(--modal-border);
+  padding: 12px 16px;
+}
+
+.task-info-section {
+  background: var(--modal-section);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+  border: 1px solid rgba(100, 255, 218, 0.2);
+  position: relative;
+  overflow: hidden;
+}
+
+.task-info-section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg, var(--modal-border), transparent);
+}
+
+.task-metric {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 4px 0;
+  padding: 4px;
+  font-family: 'Courier New', monospace;
+  font-size: 0.85rem;
+}
+
+.task-metric:hover {
+  background: rgba(100, 255, 218, 0.05);
+  border-radius: 4px;
+}
+
+.task-metric-label {
+  color: rgba(226, 232, 240, 0.8);
+}
+
+.task-metric-value {
+  color: var(--modal-border);
+  font-weight: 600;
+  font-family: 'Roboto Mono', monospace;
+  text-align: right;
+}
+
+/* Side panel specific styles */
+.task-side-panel .MuiDialog-paper {
+  border-radius: 12px 0 0 12px !important;
+  animation: slideInRight 0.3s ease-out;
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.task-side-panel .MuiDialogContent-root {
+  height: calc(100vh - 110px);
+  overflow-y: auto;
+} 

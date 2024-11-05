@@ -14,7 +14,7 @@
 
 .radar-dish {
     transform-origin: 0 0;
-    animation: scanMove 3s infinite ease-in-out;
+    animation: scanMove 5s infinite ease-in-out;
 }
 
 .dish-main {
@@ -32,9 +32,6 @@
 @keyframes scanMove {
     0% {
         transform: rotate(0deg);
-    }
-    50% {
-        transform: rotate(180deg);
     }
     100% {
         transform: rotate(360deg);
