@@ -1,0 +1,63 @@
+/* Satellite highlight animation */
+.satellite-highlight {
+  fill: none;
+  stroke: #FFD700;
+  stroke-width: 1;
+  stroke-dasharray: 4;
+  animation: dash 1s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes dash {
+  to {
+    stroke-dashoffset: -8;
+  }
+}
+
+/* Satellite marker styles */
+.satellite-body {
+  fill: #64FFDA;
+  stroke: #1A2F4C;
+  stroke-width: 0.5;
+  filter: drop-shadow(0 0 2px rgba(100, 255, 218, 0.5));
+}
+
+.satellite-panel-left, .satellite-panel-right {
+  fill: #233554;
+  stroke: #64FFDA;
+  stroke-width: 0.5;
+}
+
+.satellite-antenna {
+  stroke: #64FFDA;
+  stroke-width: 0.5;
+}
+
+.satellite-antenna-tip {
+  fill: #64FFDA;
+}
+
+.satellite-dish {
+  stroke: #64FFDA;
+  stroke-width: 0.5;
+  opacity: 0.8;
+}
+
+/* Animation for solar panels */
+@keyframes panelPulse {
+  0% { opacity: 0.6; }
+  50% { opacity: 1; }
+  100% { opacity: 0.6; }
+}
+
+.satellite-panel-left, .satellite-panel-right {
+  animation: panelPulse 2s ease-in-out infinite;
+}
+
+.marker-text {
+  font-family: 'Roboto Mono', monospace;
+  fill: #64FFDA;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+} 

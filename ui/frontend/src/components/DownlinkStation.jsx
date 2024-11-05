@@ -21,6 +21,25 @@ const DownlinkStation = React.memo(({ color, task }) => {
                         className="downlink-base"
                         style={{ stroke: color }}
                     />
+                    
+                    {/* Satellite Dish */}
+                    <g className="radar-dish">
+                        <g transform="translate(0, -4)">
+                            <path
+                                d="M -4 0 Q 0 -6 4 0"
+                                className="dish-main"
+                                style={{ stroke: color }}
+                            />
+                            <line 
+                                x1="0" 
+                                y1="0" 
+                                x2="0" 
+                                y2="2" 
+                                className="dish-support"
+                                style={{ stroke: color }}
+                            />
+                        </g>
+                    </g>
                 </g>
             </g>
         </Marker>

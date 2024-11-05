@@ -9,6 +9,63 @@ from bsk_rl.sim import dyn, fsw
 
 from rl.tasks.task import TaskType
 
+class SatelliteTask:
+    def __init__(self, task, sat):
+        self.task = task
+        self.sat = sat
+
+        self.init_storage = self.sat.storage_level
+        self.init_power = self.sat.dynamics.battery_charge
+        self.init_alive = self.sat.is_alive()
+
+        self.storage_change = self.sat.get_task_storage_change(self.task)
+        self.power_change = self.sat.get_power_change(self.task)
+
+        self.will_task_complete = True
+
+        if self.storage_change + self.init_storage > self.sat.storage_capacity:
+            self.will_task_complete = False
+        elif self.power_change + self.init_power < 0.05:
+            self.will_task_complete = False
+
+
+        self.final_storage = None
+        self.final_power = None
+        self.final_alive = True
+        self.final_storage_change = None
+        self.final_power_change = None
+
+
+    def task_complete(self):
+        self.final_storage = self.sat.storage_level
+        self.final_power = self.sat.dynamics.battery_charge
+        self.final_alive = self.sat.is_alive()
+
+        self.final_storage_change = self.final_storage - self.init_storage
+        self.final_power_change = self.final_power - self.init_power
+
+
+    @property
+    def sat_task_valid(self):
+        return self.will_task_complete and self.final_alive
+
+
+    @property
+    def observation(self):
+        return {
+            'init_storage': self.init_storage,
+            'init_power': self.init_power,
+            'storage_change': self.storage_change,
+            'power_change': self.power_change,
+            'final_storage': self.final_storage,
+            'final_power': self.final_power,
+            'final_storage_change': self.final_storage_change,
+            'final_power_change': self.final_power_change,
+            'task_type': self.task.get_task_type_str(),
+            'sat_task_valid': self.sat_task_valid,
+        }
+
+
 class Satellite:
 
     def __init__(self, sat_args, simulator, name, utc_init, sim_rate=1.0):
@@ -31,38 +88,31 @@ class Satellite:
         self.dynamics = dyn.GroundStationDynModel(self, dyn_rate=self.sim_rate, **sat_args)
         self.fsw_type = fsw.ContinuousImagingFSWModel
         self.fsw = fsw.ContinuousImagingFSWModel(self, fsw_rate=self.sim_rate, **sat_args)
-        # self.fsw_type = fsw.ImagingFSWModel
-        # self.fsw = fsw.ImagingFSWModel(self, fsw_rate=self.sim_rate, **sat_args)
 
-    def _get_storage_change(self, task):
-        if task.is_data_downlink:
-            transmitter_baud_rate = self.dynamics.transmitter.nodeBaudRate
-            storage_change = transmitter_baud_rate * self.simulator.max_step_duration_sec #* task.duration
-        else:
-            # return (self.storage_unit.storage_level + task.storage_size) / self.storage_unit.storage_capacity
-            instrument_baud_rate = self.dynamics.instrument.nodeBaudRate
-            storage_change = instrument_baud_rate * self.simulator.max_step_duration_sec #* task.duration
-        return storage_change
+        self.sat_task = None
+
     
-    def _get_power_change(self, task):
-        if task.is_data_downlink:
-            return self.dynamics.transmitterPowerSink.nodePowerOut
+    def get_power_change(self, task):
+        """
+            This is a rough estimate of the power change for a task
+            You must run the simulation forward to get the actual power change
+        """
+        if task.is_charge and not self.in_eclipse():
+            # Should fully recharge so the power change is the amount of storage that can be charged
+            return self.dynamics.powerMonitor.storageCapacity - self.dynamics.battery_charge
+        elif task.is_charge:
+            # If we are in eclipse then we can't charge and will just drift
+            return 0
+        elif task.is_desat:
+            # This should result in a power gain as the energy is converted from motion to electrical
+            return 10000
         else:
-            return self.dynamics.instrumentPowerSink.nodePowerOut
+            # We are doing a collection or data downlink so power is being used
+            return -self.dynamics.instrumentPowerSink.nodePowerOut * self.simulator.max_step_duration_sec
 
     def can_complete_task(self, task):
-        if task.is_charge:
-            if self.in_eclipse():
-                return False
-        elif task.is_desat:
-            if self.pct_power() < 0.05:
-                return False
-        elif task.is_data_downlink:
-            pass
-        elif task.is_collection:
-            if self.pct_power() < 0.05:
-                return False
-        return True
+        sat_task = SatelliteTask(task, self)
+        return sat_task.sat_task_valid
     
     def in_eclipse(self):
         """
@@ -83,8 +133,10 @@ class Satellite:
         return eclipse_end-self.simulator.sim_time
 
     def in_valid_state(self):
-        # Check if the satellite is alive and the FSW is alive 
-        return self.dynamics.is_alive(log_failure=False) and self.fsw.is_alive(log_failure=False)
+        # Check if the satellite is alive and the FSW is alive and task is valid
+        dynamics_valid = self.dynamics.is_alive(log_failure=False) and self.fsw.is_alive(log_failure=False) 
+        task_valid = self.sat_task.sat_task_valid if self.sat_task is not None else True
+        return dynamics_valid and task_valid
     
     def pct_power(self):
         return self.dynamics.battery_charge_fraction
@@ -92,7 +144,6 @@ class Satellite:
     def pct_storage(self):
         return self.dynamics.storage_level_fraction
     
-
     def print_stat_stats(self, info=None):
         sat_stats = f"##############################################\n"
         sat_stats += f"Satellite {self.name} stats\n"
@@ -137,6 +188,7 @@ class Satellite:
         Called before running the simulation step
         """
         # self.print_stat_stats(info=f"    Pre-task stats {task.get_task_type_str()}\n")
+        self.sat_task = SatelliteTask(task, self)
         task.collect(self, start_time, end_time)
         self._task_started(task, window_offset)
 
@@ -144,23 +196,14 @@ class Satellite:
         """
         Called after running the simulation step
         """
+        self.sat_task.task_complete()
         task.complete(self, end_time)
-        self._task_completed(task)
-        # self.print_stat_stats(info=f"    Post-task stats {task.get_task_type_str()}\n")
-        
-    def _task_completed(self, task):
-        pass
-
-    def task_failed(self, task):
-        pass
-
-    def storage_after_task(self, task):
-        storage_change = self._get_storage_change(task)
+    
+    def get_task_storage_change(self, task):
         if task.is_data_downlink:
-            # Downlink baud rate is negative so storage_change is negative
-            return min(0, self.dynamics.storage_level + storage_change)
+            return -self.dynamics.transmitter.nodeBaudRate * self.simulator.max_step_duration_sec
         else:
-            return max(self.dynamics.storageUnit.storageCapacity, self.dynamics.storage_level + storage_change)
+            return self.dynamics.instrument.nodeBaudRate * self.simulator.max_step_duration_sec
 
     def is_alive(self, log_failure=False):
         is_alive = self.dynamics.is_alive(log_failure=log_failure) and self.fsw.is_alive(
@@ -174,12 +217,10 @@ class Satellite:
 
     @property
     def storage_level(self):
-        # return self.storage_unit.storage_level
         return self.dynamics.storage_level
     
     @property
     def storage_capacity(self):
-        # return self.storage_unit.storage_capacity
         return self.dynamics.storageUnit.storageCapacity
 
     def set_action(self, action):
@@ -222,6 +263,7 @@ class Satellite:
             'in_eclipse': self.in_eclipse(),
             'next_eclipse': self.next_eclipse(),
             'end_of_eclipse': self.end_of_eclipse(), 
+            'sat_task': self.sat_task.observation if self.sat_task is not None else None,
         }
 
 
@@ -282,7 +324,7 @@ def create_random_satellite(name, simulator, utc_init):
         'mu': 398600436000000.0, 
         'dataStorageCapacity': 5000 * 8e6, 
         'bufferNames': None, 
-        'storageUnitValidCheck': False, 
+        'storageUnitValidCheck': True, # Will fail if storage is full
         'storageInit': np.random.uniform(0, 5000 * 8e6), 
         'thrusterPowerDraw': 0.0, 
         'transmitterBaudRate': -200000000.0, # Downlink rate

@@ -14,6 +14,7 @@ import { useAgent } from '../store/AgentStore';
 import CircularProgress from '@mui/material/CircularProgress';
 import SatelliteModal from './SatelliteModal';
 import DownlinkStation from './DownlinkStation';
+import SatelliteMarker from './SatelliteMarker';
 
 const STEP_DURATION = 3000; // 3 seconds
 
@@ -82,7 +83,16 @@ const MapChart = () => {
   }, [interpolatedPositions]);
 
   const handleSatelliteClick = (satId) => {
+    // If clicking the same satellite, do nothing
+    if (selectedSatellite === satId) return;
+    
+    // If clicking a different satellite, update to the new one
     setSelectedSatellite(satId);
+  };
+
+  const handleModalClose = () => {
+    // Only close when explicitly called (e.g., from a close button in the modal)
+    setSelectedSatellite(null);
   };
 
   if (loading) {
@@ -188,66 +198,15 @@ const MapChart = () => {
             );
           })}
 
-          {/* Update Satellite Markers rendering */}
+          {/* Satellite Markers */}
           {Object.entries(currentPositions).map(([satId, position]) => (
-            <Marker
+            <SatelliteMarker
               key={satId}
-              coordinates={[position.lon, position.lat]}
-              data-tooltip-id={`sat-tooltip-${satId}`}
-              data-tooltip-content={`Satellite: ${satId}`}
-              onClick={() => handleSatelliteClick(satId)}
-            >
-              <g className="satellite-marker">
-                {/* Invisible larger clickable area */}
-                <circle 
-                  r={12}
-                  fill="transparent"
-                  className="satellite-click-area"
-                />
-                
-                {/* Pulsing effect */}
-                <circle 
-                  r={8}
-                  className="satellite-pulse"
-                />
-                
-                {/* Main satellite body */}
-                <g transform="translate(-8, -8) scale(1)">
-                  {/* Core */}
-                  <circle 
-                    cx="8"
-                    cy="8"
-                    r="4"
-                    className="satellite-core"
-                  />
-                  
-                  {/* Orbital ring */}
-                  <circle
-                    cx="8"
-                    cy="8"
-                    r="7"
-                    className="satellite-ring"
-                  />
-                  
-                  {/* Solar panels */}
-                  <rect
-                    x="2"
-                    y="6"
-                    width="4"
-                    height="4"
-                    className="satellite-panels"
-                  />
-                  <rect
-                    x="10"
-                    y="6"
-                    width="4"
-                    height="4"
-                    className="satellite-panels"
-                  />
-                </g>
-              </g>
-              <Tooltip id={`sat-tooltip-${satId}`} place="top" effect="solid" className="tooltip" />
-            </Marker>
+              satId={satId}
+              position={position}
+              isSelected={selectedSatellite === satId}
+              onClick={handleSatelliteClick}
+            />
           ))}
         </ComposableMap>
 
@@ -268,7 +227,7 @@ const MapChart = () => {
 
       <SatelliteModal
         open={!!selectedSatellite}
-        onClose={() => setSelectedSatellite(null)}
+        onClose={handleModalClose}
         satelliteId={selectedSatellite}
       />
     </div>

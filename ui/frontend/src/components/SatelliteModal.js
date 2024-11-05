@@ -33,26 +33,45 @@ const SatelliteModal = ({ open, onClose, satelliteId }) => {
       power_percentage,
       in_eclipse,
       next_eclipse,
-      end_of_eclipse
+      end_of_eclipse,
+      is_alive,
+      wheel_speed_1,
+      wheel_speed_2,
+      wheel_speed_3,
+      sat_task
     }
   } = sat;
 
   return (
     <Dialog 
       open={open} 
-      onClose={onClose}
       maxWidth="sm"
-      fullWidth
-      className="satellite-modal"
+      className="satellite-modal satellite-side-panel"
       hideBackdrop={true}
       disableScrollLock={true}
+      onBackdropClick={() => {}}
+      onClose={(event, reason) => {
+        if (reason !== 'backdropClick') {
+          onClose();
+        }
+      }}
       sx={{ 
-        position: 'absolute',
-        pointerEvents: 'none'
+        '& .MuiDialog-container': {
+          alignItems: 'flex-start',
+          justifyContent: 'flex-start'
+        }
       }}
       PaperProps={{
         sx: {
-          pointerEvents: 'auto'
+          position: 'fixed',
+          left: 0,
+          top: 0,
+          height: '100%',
+          maxHeight: '100vh',
+          width: '300px',
+          maxWidth: '90vw',
+          margin: 0,
+          borderRadius: '0 12px 12px 0'
         }
       }}
     >
@@ -63,6 +82,25 @@ const SatelliteModal = ({ open, onClose, satelliteId }) => {
       </DialogTitle>
 
       <DialogContent className="satellite-modal-content">
+        {/* Position Vector Information */}
+        <div className="satellite-info-section">
+          <Typography className="satellite-info-title">
+            Position Vector (r_BP_P)
+          </Typography>
+          <div className="satellite-metric">
+            <span className="satellite-metric-label">X</span>
+            <span className="satellite-metric-value">{sat.r_BP_P[0].toFixed(2)} m</span>
+          </div>
+          <div className="satellite-metric">
+            <span className="satellite-metric-label">Y</span>
+            <span className="satellite-metric-value">{sat.r_BP_P[1].toFixed(2)} m</span>
+          </div>
+          <div className="satellite-metric">
+            <span className="satellite-metric-label">Z</span>
+            <span className="satellite-metric-value">{sat.r_BP_P[2].toFixed(2)} m</span>
+          </div>
+        </div>
+
         {/* Location Information */}
         <div className="satellite-info-section">
           <Typography className="satellite-info-title">
@@ -79,6 +117,38 @@ const SatelliteModal = ({ open, onClose, satelliteId }) => {
           <div className="satellite-metric">
             <span className="satellite-metric-label">Altitude</span>
             <span className="satellite-metric-value">{(alt / 1000).toFixed(2)} km</span>
+          </div>
+        </div>
+
+        {/* Satellite Status */}
+        <div className="satellite-info-section">
+          <Typography className="satellite-info-title">
+            Satellite Status
+          </Typography>
+          <div className="satellite-metric">
+            <span className="satellite-metric-label">Status</span>
+            <span className={`satellite-metric-value ${is_alive ? 'status-alive' : 'status-dead'}`}>
+              {is_alive ? '🟢 Active' : '🔴 Inactive'}
+            </span>
+          </div>
+        </div>
+
+        {/* Reaction Wheels */}
+        <div className="satellite-info-section">
+          <Typography className="satellite-info-title">
+            Reaction Wheels
+          </Typography>
+          <div className="satellite-metric">
+            <span className="satellite-metric-label">Wheel 1</span>
+            <span className="satellite-metric-value">{wheel_speed_1.toFixed(4)} rad/s</span>
+          </div>
+          <div className="satellite-metric">
+            <span className="satellite-metric-label">Wheel 2</span>
+            <span className="satellite-metric-value">{wheel_speed_2.toFixed(4)} rad/s</span>
+          </div>
+          <div className="satellite-metric">
+            <span className="satellite-metric-label">Wheel 3</span>
+            <span className="satellite-metric-value">{wheel_speed_3.toFixed(4)} rad/s</span>
           </div>
         </div>
 
@@ -143,6 +213,81 @@ const SatelliteModal = ({ open, onClose, satelliteId }) => {
             </div>
           )}
         </div>
+
+        {/* Replace the current sat_task section */}
+        {sat_task && (
+          <div className="satellite-info-section">
+            <Typography className="satellite-info-title">
+              Current Task
+            </Typography>
+            <div className="satellite-metric">
+              <span className="satellite-metric-label">Type</span>
+              <span className="satellite-metric-value">{sat_task.task_type}</span>
+            </div>
+            <div className="satellite-metric">
+              <span className="satellite-metric-label">Task Valid</span>
+              <span className={`satellite-metric-value ${sat_task.sat_task_valid ? 'status-alive' : 'status-dead'}`}>
+                {sat_task.sat_task_valid ? 'Valid' : 'Invalid'}
+              </span>
+            </div>
+            
+            {/* Initial States */}
+            <div className="satellite-metric">
+              <span className="satellite-metric-label">Initial Storage</span>
+              <span className="satellite-metric-value">
+                {(sat_task.init_storage / 1e9).toFixed(2)} GB
+              </span>
+            </div>
+            <div className="satellite-metric">
+              <span className="satellite-metric-label">Initial Power</span>
+              <span className="satellite-metric-value">
+                {sat_task.init_power.toFixed(2)} W
+              </span>
+            </div>
+
+            {/* Changes */}
+            <div className="satellite-metric">
+              <span className="satellite-metric-label">Storage Change</span>
+              <span className="satellite-metric-value">
+                {(sat_task.storage_change / 1e9).toFixed(2)} GB
+              </span>
+            </div>
+            <div className="satellite-metric">
+              <span className="satellite-metric-label">Power Change</span>
+              <span className="satellite-metric-value">
+                {sat_task.power_change.toFixed(2)} W
+              </span>
+            </div>
+
+            {/* Final States */}
+            <div className="satellite-metric">
+              <span className="satellite-metric-label">Final Storage</span>
+              <span className="satellite-metric-value">
+                {(sat_task.final_storage / 1e9).toFixed(2)} GB
+              </span>
+            </div>
+            <div className="satellite-metric">
+              <span className="satellite-metric-label">Final Power</span>
+              <span className="satellite-metric-value">
+                {sat_task.final_power.toFixed(2)} W
+              </span>
+            </div>
+
+            {/* Final Changes */}
+            <div className="satellite-metric">
+              <span className="satellite-metric-label">Final Storage Change</span>
+              <span className="satellite-metric-value">
+                {(sat_task.final_storage_change / 1e9).toFixed(2)} GB
+              </span>
+            </div>
+            <div className="satellite-metric">
+              <span className="satellite-metric-label">Final Power Change</span>
+              <span className="satellite-metric-value">
+                {sat_task.final_power_change.toFixed(2)} W
+              </span>
+            </div>
+          </div>
+        )}
       </DialogContent>
 
       <DialogActions className="satellite-modal-actions">

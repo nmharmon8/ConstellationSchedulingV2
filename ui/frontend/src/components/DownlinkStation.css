@@ -1,119 +1,51 @@
 .downlink-station {
-  /* Remove transform-origin and transform */
-  /* transform-origin: center; */
-  /* transform: scale(0.8); */
+    transition: transform 0.3s ease;
 }
 
-/* Base Platform */
+.downlink-station:hover {
+    transform: scale(1.2);
+}
+
 .downlink-base {
-  fill: rgba(100, 255, 218, 0.05);
-  stroke-width: 2;
-  filter: drop-shadow(0 0 2px currentColor);
+    fill: rgba(0, 0, 0, 0.2);
+    stroke-width: 2;
+    filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.3));
 }
 
-.downlink-base-inner {
-  fill: none;
-  stroke-width: 1;
-  stroke-dasharray: 4 4;
-  animation: rotateBase 10s linear infinite;
-}
-
-/* Dish Support */
-.dish-support {
-  fill: none;
-  stroke-width: 2;
-  filter: drop-shadow(0 0 2px currentColor);
-}
-
-/* Main Dish */
 .radar-dish {
-  /* Remove transform-origin, keep animation */
-  /* transform-origin: center -15px; */
-  animation: dishMovement 4s ease-in-out infinite;
+    transform-origin: 0 0;
+    animation: scanMove 3s infinite ease-in-out;
 }
 
 .dish-main {
-  fill: none;
-  stroke-width: 2;
-  filter: drop-shadow(0 0 3px currentColor);
+    fill: none;
+    stroke-width: 2;
+    stroke-linecap: round;
+    filter: drop-shadow(0 0 3px currentColor);
 }
 
-.dish-secondary {
-  fill: none;
-  stroke-width: 1;
-  stroke-dasharray: 4 4;
-  opacity: 0.8;
+.dish-support {
+    stroke-width: 2;
 }
 
-.dish-tertiary {
-  fill: none;
-  stroke-width: 1;
-  stroke-dasharray: 2 2;
-  opacity: 0.6;
+/* Scanning animation */
+@keyframes scanMove {
+    0% {
+        transform: rotate(0deg);
+    }
+    50% {
+        transform: rotate(180deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
 }
 
-/* Scanner */
-.scanner {
-  transform-origin: center -15px;
-  animation: scannerRotate 2s linear infinite;
+/* Add a subtle glow effect on hover */
+.downlink-station:hover .dish-main {
+    filter: drop-shadow(0 0 5px currentColor);
 }
 
-.scanner-beam {
-  stroke-width: 1;
-  stroke-dasharray: 4 4;
-  opacity: 0.8;
-}
-
-/* Signal Rings */
-.signal-ring {
-  fill: none;
-  stroke-width: 1;
-  opacity: 0;
-}
-
-.ring-1 {
-  animation: pulseRing 3s ease-out infinite;
-}
-
-.ring-2 {
-  animation: pulseRing 3s ease-out infinite 1s;
-}
-
-.ring-3 {
-  animation: pulseRing 3s ease-out infinite 2s;
-}
-
-/* Status Indicators */
-.status-indicator {
-  filter: drop-shadow(0 0 2px currentColor);
-  animation: blinkIndicator 1.5s ease-in-out infinite;
-}
-
-Signal Beams
-.signal-beam {
-  stroke-width: 1.5;
-  opacity: 0.6;
-  animation: pulseBeam 2s ease-in-out infinite;
-}
-
-
-@keyframes pulseRing {
-  0% {
-    opacity: 0.8;
-    transform: scale(0.8);
-  }
-  100% {
-    opacity: 0;
-    transform: scale(1.2);
-  }
-}
-
-@keyframes pulseBeam {
-  0%, 100% { opacity: 0.1; }
-  50% { opacity: 0.4; }
-}
-
-@keyframes blinkIndicator {
-  0%, 100% { opacity: 0.5; }
-  50% { opacity: 1; }
+.downlink-station:hover .downlink-base {
+    filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.5));
 }
