@@ -329,7 +329,7 @@ class DownlinkTask(PositionTask):
             position = lla2ecef(station['lat'], station['long'], radius)
             
             # Task Duration
-            task_duration = 30
+            task_duration = 10
 
             task = DownlinkTask(
                 name=f"tgt-{station['name']}",
@@ -396,7 +396,7 @@ class ChargeTask(Task):
 
     @staticmethod
     def create_charge_task(config):
-        return ChargeTask(priority=config['charge_task_priority'], task_duration=30)
+        return ChargeTask(priority=config['charge_task_priority'], task_duration=1)
 
     @property
     def task_complete(self):

@@ -78,6 +78,8 @@ class TaskManager:
 
     def calculate_access_windows(self, satellite, calculation_start=0.0, duration=180.0):
 
+        print(f"Calculating access windows for {satellite.name} from {calculation_start} to {calculation_start + duration}")
+
         if duration <= 0:
             return []
 
@@ -117,6 +119,7 @@ class TaskManager:
                     roots, candidate_window, (times[0], times[-1])
                 )
                 for new_window in new_windows:
+                    print(f"Adding window {new_window} to task {task.id}")
                     task.add_window(satellite, new_window)
 
     @staticmethod

@@ -64,7 +64,7 @@ const ObservationState = () => {
             return (
               <tr key={satId}>
                 <td className="sat-id">
-                  {satId.slice(0, 5)}...
+                  {satId.split('_')[0]}
                 </td>
                 {[...Array(maxTasks)].map((_, index) => {
                   const task = tasks[index];

@@ -18,14 +18,15 @@ class SatelliteTask:
         self.init_power = self.sat.dynamics.battery_charge
         self.init_alive = self.sat.is_alive()
 
-        self.storage_change = self.sat.get_task_storage_change(self.task)
-        self.power_change = self.sat.get_power_change(self.task)
+        self.predicted_storage_change = self.sat.get_task_storage_change(self.task)
+        self.predicted_power_change = self.sat.get_power_change(self.task)
 
         self.will_task_complete = True
 
-        if self.storage_change + self.init_storage > self.sat.storage_capacity:
-            self.will_task_complete = False
-        elif self.power_change + self.init_power < 0.05:
+        if self.predicted_storage_change + self.init_storage > self.sat.storage_capacity:
+            self.will_task_complete = False        
+        elif self.sat.pct_power() < 0.1:
+            # Power is hard to estimate so we will just check if the power is less than 10%
             self.will_task_complete = False
 
 
@@ -41,9 +42,11 @@ class SatelliteTask:
         self.final_power = self.sat.dynamics.battery_charge
         self.final_alive = self.sat.is_alive()
 
+        if self.final_power > 0.03 and self.final_storage < 0.97:
+            self.will_task_complete = True
+
         self.final_storage_change = self.final_storage - self.init_storage
         self.final_power_change = self.final_power - self.init_power
-
 
     @property
     def sat_task_valid(self):
@@ -55,8 +58,8 @@ class SatelliteTask:
         return {
             'init_storage': self.init_storage,
             'init_power': self.init_power,
-            'storage_change': self.storage_change,
-            'power_change': self.power_change,
+            'predicted_storage_change': self.predicted_storage_change,
+            'predicted_power_change': self.predicted_power_change,
             'final_storage': self.final_storage,
             'final_power': self.final_power,
             'final_storage_change': self.final_storage_change,
@@ -64,6 +67,14 @@ class SatelliteTask:
             'task_type': self.task.get_task_type_str(),
             'sat_task_valid': self.sat_task_valid,
         }
+    
+class Actions:
+    DOWNLINK = 'DOWNLINK'
+    CHARGE = 'CHARGE'
+    COLLECTION = 'COLLECTION'
+    DESAT = 'DESAT'
+    DRIFT = 'DRIFT'
+
 
 
 class Satellite:
@@ -90,6 +101,8 @@ class Satellite:
         self.fsw = fsw.ContinuousImagingFSWModel(self, fsw_rate=self.sim_rate, **sat_args)
 
         self.sat_task = None
+        self.action = Actions.DRIFT
+        self.last_action_reward = 0
 
     
     def get_power_change(self, task):
@@ -166,17 +179,23 @@ class Satellite:
     def _task_started(self, task, window_offset):
         if task.is_data_downlink and window_offset == 0:
             self.fsw.action_downlink()
+            self.action = Actions.DOWNLINK
         elif task.is_charge:
             if not self.in_eclipse():
                 self.fsw.action_charge()
+                self.action = Actions.CHARGE
             else:
                 self.fsw.action_drift()
+                self.action = Actions.DRIFT
         elif task.is_desat:
             self.fsw.action_desat()
+            self.action = Actions.DESAT
         elif task.is_collection:
             self.fsw.action_nadir_scan(task.r_LP_P)
+            self.action = Actions.COLLECTION
         elif task.task_type == TaskType.NOOP:
             self.fsw.action_drift()
+            self.action = Actions.DRIFT
         else:
             print(f"FSW: Satellite {self.name} unknown task type: {task.task_type}")
             self.fsw.action_drift()
@@ -196,6 +215,7 @@ class Satellite:
         """
         self.sat_task.task_complete()
         task.complete(self, end_time)
+        self.last_action_reward = task.get_reward()
     
     def get_task_storage_change(self, task):
         if task.is_data_downlink:
@@ -262,6 +282,8 @@ class Satellite:
             'next_eclipse': self.next_eclipse(),
             'end_of_eclipse': self.end_of_eclipse(), 
             'sat_task': self.sat_task.observation if self.sat_task is not None else None,
+            'action': self.action,
+            'reward': self.last_action_reward,
         }
 
 

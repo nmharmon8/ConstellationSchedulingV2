@@ -20,6 +20,7 @@ const SatelliteModal = ({ open, onClose, satelliteId }) => {
   }
 
   const sat = currentSatState[satelliteId];
+  console.log('Satellite:', sat);
   const {
     lat,
     lon,
@@ -38,7 +39,9 @@ const SatelliteModal = ({ open, onClose, satelliteId }) => {
       wheel_speed_1,
       wheel_speed_2,
       wheel_speed_3,
-      sat_task
+      sat_task,
+      action,
+      reward
     }
   } = sat;
 
@@ -214,6 +217,33 @@ const SatelliteModal = ({ open, onClose, satelliteId }) => {
           )}
         </div>
 
+        {/* Current Action */}
+        {(action || sat_task || reward !== undefined) && (
+          <div className="satellite-info-section">
+            <Typography className="satellite-info-title">
+              Current Action
+            </Typography>
+            {sat_task && (
+              <div className="satellite-metric">
+                <span className="satellite-metric-label">Requested</span>
+                <span className="satellite-metric-value">{sat_task.task_type}</span>
+              </div>
+            )}
+            {action && (
+              <div className="satellite-metric">
+                <span className="satellite-metric-label">Action</span>
+                <span className="satellite-metric-value">{action}</span>
+              </div>
+            )}
+            {reward !== undefined && (
+              <div className="satellite-metric">
+                <span className="satellite-metric-label">Reward</span>
+                <span className="satellite-metric-value">{reward.toFixed(4)}</span>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Replace the current sat_task section */}
         {sat_task && (
           <div className="satellite-info-section">
@@ -249,13 +279,13 @@ const SatelliteModal = ({ open, onClose, satelliteId }) => {
             <div className="satellite-metric">
               <span className="satellite-metric-label">Storage Change</span>
               <span className="satellite-metric-value">
-                {(sat_task.storage_change / 1e9).toFixed(2)} GB
+                {(sat_task.predicted_storage_change / 1e9).toFixed(2)} GB
               </span>
             </div>
             <div className="satellite-metric">
               <span className="satellite-metric-label">Power Change</span>
               <span className="satellite-metric-value">
-                {sat_task.power_change.toFixed(2)} W
+                {sat_task.predicted_power_change.toFixed(2)} W
               </span>
             </div>
 
@@ -275,13 +305,13 @@ const SatelliteModal = ({ open, onClose, satelliteId }) => {
 
             {/* Final Changes */}
             <div className="satellite-metric">
-              <span className="satellite-metric-label">Final Storage Change</span>
+              <span className="satellite-metric-label">Δ Storage</span>
               <span className="satellite-metric-value">
                 {(sat_task.final_storage_change / 1e9).toFixed(2)} GB
               </span>
             </div>
             <div className="satellite-metric">
-              <span className="satellite-metric-label">Final Power Change</span>
+              <span className="satellite-metric-label">Δ Power</span>
               <span className="satellite-metric-value">
                 {sat_task.final_power_change.toFixed(2)} W
               </span>

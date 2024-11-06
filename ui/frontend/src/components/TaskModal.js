@@ -10,11 +10,11 @@ const TaskModal = ({ task, open, onClose }) => {
   }
 
   const formatNumber = (num) => {
-    return num !== undefined ? Number(num).toFixed(2) : '0.00';
+    return num !== undefined ? Number(num).toFixed(3) : '0.000';
   };
 
   const formatStorageSize = (size) => {
-    return size !== undefined ? (Number(size) / 1e6).toFixed(2) : '0.00';
+    return size !== undefined ? (Number(size) / 1e6).toFixed(3) : '0.000';
   };
 
   const getTaskTypeColor = () => {
