@@ -4,17 +4,9 @@ import random
 
 from rl.sat import Satellite, create_random_satellite
 from rl.tasks.task_manager import TaskManager
-from bsk_rl.utils.orbital import random_orbit
-# from bsk_rl.sim import Simulator as BSKSimulator
-from Basilisk.utilities import SimulationBaseClass
-from Basilisk.utilities import macros as mc
+from Basilisk.utilities import SimulationBaseClass, orbitalMotion, macros as mc
 
-
-CONSTANT_DATETIME = datetime(2023, 1, 1, 0, 0, 0).strftime("%Y %b %d %H:%M:%S.%f (UTC)")  # Year, Month, Day, Hour, Minute, Second
-
-from bsk_rl.utils.orbital import random_epoch
-
-from bsk_rl.sim.world import GroundStationWorldModel
+from bsk_rl.sim.world import BasicWorldModel
 
 def get_random_utc_init():
     # Get the current time plus a random interval between 0 and 24 hours
@@ -37,39 +29,25 @@ class Simulator(SimulationBaseClass.SimBaseClass):
         self.max_tasks = config['max_tasks']
         self.n_sats = config['n_sats']
 
-        # self.utc_init = get_random_utc_init()
-        self.utc_init = datetime.now().strftime("%Y %b %d %H:%M:%S.%f (UTC)")
-
-        print(f"My utc_init: {self.utc_init}")
-
+        self.utc_init = get_random_utc_init()
         # Build the args for the world model
         world_args = {
-            'groundStationsData': config['groundStations'],
-            'planetRadius': 6378136.6,
+            'planetRadius': orbitalMotion.REQ_EARTH * 1e3,
             'baseDensity': 1.22,
             'scaleHeight': 8000.0,
-            'groundLocationPlanetRadius': 6378136.6, 
-            'gsMinimumElevation': 0.017453292519943295, 
-            'gsMaximumRange': -1
         } 
 
-        
         self.fsw_list = {}
         self.dynamics_list = {}
-        self.world = GroundStationWorldModel(self, world_rate=self.sim_rate, utc_init=self.utc_init, **world_args)
+        self.world = BasicWorldModel(self, world_rate=self.sim_rate, utc_init=self.utc_init, **world_args)
         self.task_manager = TaskManager(self.config, self.action_def)
-        # Can't just init to current time as you get a improper sampling of eciple or not
-        # self.utc_init = datetime.now().strftime("%Y %b %d %H:%M:%S.%f (UTC)")
-        # Runs encredibly slowly if you use any random_epoch()
-        
-        self.satellites = [create_random_satellite(f"EO-{i}", simulator=self, utc_init=self.utc_init) for i in range(self.n_sats)]
-        
+ 
+        self.satellites = [create_random_satellite(f"EO-{i}", simulator=self, utc_init=self.utc_init) for i in range(self.n_sats)]       
         self.cum_reward = 0
 
         self.InitializeSimulation()
         self.ConfigureStopTime(0)
         self.ExecuteSimulation()
-
 
     def get_sat_info(self):
         sat_info = {}

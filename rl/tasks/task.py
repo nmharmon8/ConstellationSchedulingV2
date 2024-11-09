@@ -359,7 +359,7 @@ class DownlinkTask(PositionTask):
                 priority=config['downlink_task_priority'],
                 task_duration=task_duration,
                 max_step_duration=config['max_step_duration'],
-                min_elev=0.17
+                min_elev=0.17453292519943295 # 10 degrees
             )
             
             ground_station_tasks.append(task)

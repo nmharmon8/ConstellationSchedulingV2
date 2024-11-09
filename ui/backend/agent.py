@@ -64,7 +64,7 @@ class Agent:
         ppo_config.model.update(
             {
                 "custom_model": "simple_model",
-                "custom_action_dist": "message_dist",
+                # "custom_action_dist": "message_dist",
                 "custom_model_config":config['model']
             }
         )
@@ -116,9 +116,9 @@ class Agent:
             action = self.algo.compute_single_action(self.obs, explore=False)
 
         print(f"Action: {action}")
-
         # action = [self.step % 4] 
-        action = [2] * 10
+        # action = [2] * 10
+        # action = [0] * 10
 
         next_obs, reward, done, truncated, info = self.env.step(action)
 

@@ -77,6 +77,7 @@ class SimpleModel(TorchModelV2, nn.Module):
         actions = self.action_branch(observations)
         print(f"Actions shape: {actions.shape}")
         # actions = actions.reshape(b, self.n_sats, self.n_actions)
+        actions = actions.reshape(b, -1)
         return actions, []
     
     

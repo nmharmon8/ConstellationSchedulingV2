@@ -7,7 +7,6 @@ from ray.rllib.algorithms.ppo import PPOConfig
 import ray
 
 from rl.config import parse_args, load_config
-from rl.data_callback import CustomDataCallbacks
 
 from ray import air, tune
 
@@ -32,7 +31,6 @@ ppo_config = (
         env=SatelliteTasking,
         env_config=config['env'],
     )
-    # .callbacks(CustomDataCallbacks)
     .framework("torch")
     .checkpointing(export_native_model_files=True)
     .resources(num_gpus=num_gpus) 

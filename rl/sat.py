@@ -130,8 +130,8 @@ class Satellite:
         )
 
         self.simulator = proxy(simulator)
-        self.dyn_type = dyn.GroundStationDynModel
-        self.dynamics = dyn.GroundStationDynModel(self, dyn_rate=self.sim_rate, **sat_args)
+        self.dyn_type = dyn.ContinuousImagingDynModel
+        self.dynamics = dyn.ContinuousImagingDynModel(self, dyn_rate=self.sim_rate, oe=self.oe, mu=self.mu, **sat_args)
         self.fsw_type = fsw.ContinuousImagingFSWModel
         self.fsw = fsw.ContinuousImagingFSWModel(self, fsw_rate=self.sim_rate, **sat_args)
 
@@ -213,8 +213,8 @@ class Satellite:
 
     def _task_started(self, task, window_offset):
         self.fsw.action_drift()
-        if task.is_data_downlink: #and window_offset == 0:
-            self.fsw.action_downlink # Downlink checks if it is in range of a ground station? Not sure if it works well.
+        if task.is_data_downlink and window_offset == 0:
+            self.fsw.action_downlink()
             self.action = Actions.DOWNLINK
         elif task.is_charge:
             if not self.in_eclipse():
@@ -376,8 +376,6 @@ def create_random_satellite(name, simulator, utc_init):
         'omega_init': random_tumble(maxSpinRate=0.0001)[1], 
         'rN': None, 
         'vN': None, 
-        'oe': random_orbit(alt=800), 
-        'mu': 398600436000000.0, 
         'dataStorageCapacity': 5000 * 8e6, 
         'bufferNames': None, 
         'storageUnitValidCheck': True, # Will fail if storage is full
