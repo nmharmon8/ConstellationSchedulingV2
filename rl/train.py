@@ -41,7 +41,7 @@ ppo_config = (
 ppo_config.model.update(
     {
         "custom_model": "simple_model",
-        "custom_action_dist": "message_dist",
+        # "custom_action_dist": "message_dist",
         "custom_model_config":config['model']
     }
 )
@@ -56,7 +56,7 @@ checkpoint_config = CheckpointConfig(
     num_to_keep=3,
     checkpoint_score_attribute="episode_reward_mean",
     checkpoint_score_order="max",
-    checkpoint_frequency=100,
+    checkpoint_frequency=10,
 )
 
 storage_path = f"/data/nm/{name}"

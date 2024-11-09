@@ -1,13 +1,23 @@
-import React from 'react';
+import React, { useState } from 'react';
 import './SatList.css';
 import { useAgent } from '../store/AgentStore';
 import { Box, LinearProgress, Typography } from '@mui/material';
+import SatelliteModal from './SatelliteModal';
 
 function SatList() {
   const { 
     currentSatState, 
     loading, 
   } = useAgent();
+  const [selectedSatellite, setSelectedSatellite] = useState(null);
+
+  const handleSatelliteClick = (satId) => {
+    setSelectedSatellite(satId);
+  };
+
+  const handleModalClose = () => {
+    setSelectedSatellite(null);
+  };
 
   if (loading) {
     return <div className="sat-list">Loading satellites...</div>;
@@ -30,7 +40,12 @@ function SatList() {
 
           if (!sat) {
             return (
-              <div key={satId} className="sat-item">
+              <div 
+                key={satId} 
+                className="sat-item"
+                onClick={() => handleSatelliteClick(satId)}
+                style={{ cursor: 'pointer' }}
+              >
                 <div className="sat-header">
                   <h3>{satId}</h3>
                   <span className={`eclipse-status`}>
@@ -44,7 +59,12 @@ function SatList() {
           const eclipseStatus = sat.observation.in_eclipse;
 
           return (
-            <div key={satId} className="sat-item">
+            <div 
+              key={satId} 
+              className="sat-item"
+              onClick={() => handleSatelliteClick(satId)}
+              style={{ cursor: 'pointer' }}
+            >
               <div className="sat-header">
                 <h3>{satId}</h3>
                 <span className={`eclipse-status ${eclipseStatus ? 'in-eclipse' : ''}`}>
@@ -87,6 +107,12 @@ function SatList() {
           );
         })}
       </div>
+
+      <SatelliteModal
+        open={!!selectedSatellite}
+        onClose={handleModalClose}
+        satelliteId={selectedSatellite}
+      />
     </div>
   );
 }

@@ -115,10 +115,16 @@ class Agent:
             print("Computing action without exploration")
             action = self.algo.compute_single_action(self.obs, explore=False)
 
+        print(f"Action: {action}")
+
+        # action = [self.step % 4] 
+        action = [2] * 10
+
         next_obs, reward, done, truncated, info = self.env.step(action)
 
         self.obs = next_obs
         self.info = info
+        self.step += 1
         return StepInfo(info)
     
     def get_inspector_observation_state(self):

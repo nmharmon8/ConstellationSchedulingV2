@@ -15,6 +15,8 @@ def set_seeds(seed):
     random.seed(seed)
 
 
+from bsk_rl.utils.orbital import random_epoch
+
 class SatelliteTasking(Env):
 
     @property
@@ -32,6 +34,7 @@ class SatelliteTasking(Env):
             self.worker_idx = 0
             self.num_workers = 1
             self.vector_env_index = 0
+            
 
         self.seed = self.worker_idx + self.vector_env_index * self.num_workers
         set_seeds(self.seed)
@@ -40,7 +43,6 @@ class SatelliteTasking(Env):
         self.action_def = ActionDef(config)
         self.action_space = self.action_def.action_space
         self.observation_space = spaces.Box(low=-1, high=1, shape=(config['n_sats'], config['n_access_windows'], len(config['observation_keys'])))
-        self.simulator = Simulator(config, self.action_def)
 
     @property
     def cum_reward(self):

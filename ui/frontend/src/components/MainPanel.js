@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import GlobeComponent from './GlobeComponent';
 import MapChart from './MapChart';
 import InspectorView from './InspectorView';
-import { Box, Tabs, Tab, IconButton } from '@mui/material';
+import { Box, Tabs, Tab, IconButton, TextField } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
 import AgentControlBar from './AgentControlBar';
@@ -17,6 +17,8 @@ const MainPanel = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [offset, setOffset] = useState({ x: 0, y: 0 });
+
+  const [taskInput, setTaskInput] = useState('');
 
   const handleChange = (event, newValue) => {
     setCurrentTab(newValue);
@@ -96,6 +98,10 @@ const MainPanel = () => {
     setIsDragging(false);
   };
 
+  const handleTaskInputChange = (event) => {
+    setTaskInput(event.target.value);
+  };
+
   return (
     <Box
       sx={{
@@ -120,7 +126,7 @@ const MainPanel = () => {
           gap: '8px',
           position: 'sticky',
           top: 0,
-          zIndex: 1,
+          zIndex: 10,
         }}
       >
         <Box
@@ -132,6 +138,68 @@ const MainPanel = () => {
         >
           <AgentControlBar />
         </Box>
+
+        <Box
+          sx={{
+            order: 2,
+            flex: '1 1 auto',
+            maxWidth: '300px',
+            position: 'relative',
+            zIndex: 11,
+          }}
+        >
+          <TextField
+            value={taskInput}
+            onChange={handleTaskInputChange}
+            placeholder="TaskGPT"
+            variant="outlined"
+            size="small"
+            autoComplete="off"
+            inputProps={{
+              'aria-label': 'task input',
+              style: {
+                cursor: 'text',
+                caretColor: '#00FFD1',
+              }
+            }}
+            sx={{
+              width: '100%',
+              background: 'rgba(10, 25, 47, 0.8)',
+              borderRadius: '8px',
+              pointerEvents: 'auto',
+              '& .MuiOutlinedInput-root': {
+                color: '#00FFD1',
+                background: 'rgba(255, 255, 255, 0.05)',
+                '& fieldset': {
+                  borderColor: '#00FFD1',
+                  zIndex: 0,
+                },
+                '&:hover fieldset': {
+                  borderColor: '#00E5C4',
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: '#00FFD1',
+                  boxShadow: '0 0 10px #00FFD1',
+                },
+                '& input': {
+                  position: 'relative',
+                  zIndex: 12,
+                },
+              },
+              '& .MuiInputBase-input::placeholder': {
+                color: '#00FFD1',
+                opacity: 0.7,
+                fontStyle: 'italic',
+              },
+              boxShadow: '0 0 8px #00FFD1',
+              transition: 'box-shadow 0.3s ease-in-out',
+              '&:hover': {
+                boxShadow: '0 0 12px #00FFD1',
+              },
+            }}
+          />
+        </Box>
+
         <Tabs
           value={currentTab}
           onChange={handleChange}
@@ -139,17 +207,17 @@ const MainPanel = () => {
           scrollButtons="auto"
           sx={{
             '& .MuiTabs-indicator': {
-              backgroundColor: '#64FFDA',
+              backgroundColor: '#00FFD1',
             },
             '& .MuiTab-root': {
               color: '#8892B0',
               minWidth: '80px',
               padding: '6px 12px',
               '&.Mui-selected': {
-                color: '#64FFDA',
+                color: '#00FFD1',
               },
             },
-            order: 2,
+            order: 3,
             flex: '0 1 auto',
           }}
         >
@@ -201,9 +269,9 @@ const MainPanel = () => {
               onClick={handleZoomIn}
               size="small"
               sx={{
-                color: '#64FFDA',
+                color: '#00FFD1',
                 '&:hover': {
-                  backgroundColor: 'rgba(100, 255, 218, 0.1)',
+                  backgroundColor: 'rgba(0, 255, 209, 0.1)',
                 },
               }}
               aria-label="Zoom In"
@@ -214,9 +282,9 @@ const MainPanel = () => {
               onClick={handleZoomOut}
               size="small"
               sx={{
-                color: '#64FFDA',
+                color: '#00FFD1',
                 '&:hover': {
-                  backgroundColor: 'rgba(100, 255, 218, 0.1)',
+                  backgroundColor: 'rgba(0, 255, 209, 0.1)',
                 },
               }}
               aria-label="Zoom Out"

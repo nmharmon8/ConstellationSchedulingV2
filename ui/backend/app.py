@@ -62,7 +62,6 @@ class App:
             # self.socketio.emit('step_update', convert_numpy_types(info))
             # return jsonify(convert_numpy_types(info))
             # Return status 200 to indicate success
-            print(convert_numpy_types(interpolated_sat_positions))
             self.socketio.emit('step_update', {
                 'interpolated_sat_positions': convert_numpy_types(interpolated_sat_positions),
                 'current_sat_state': convert_numpy_types(current_sat_state)
@@ -80,7 +79,6 @@ class App:
         @self.app.route('/api/get_sat_info', methods=['GET'])
         def get_sat_info():
             sat_info = self.agent.get_sat_info()
-            print(sat_info)
             return jsonify(convert_numpy_types(sat_info))
         
         @self.app.route('/api/current_step', methods=['GET'])

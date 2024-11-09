@@ -21,13 +21,18 @@ class SatelliteTask:
         self.predicted_storage_change = self.sat.get_task_storage_change(self.task)
         self.predicted_power_change = self.sat.get_power_change(self.task)
 
-        self.will_task_complete = True
-
+        self.expect_task_to_complete = True
         if self.predicted_storage_change + self.init_storage > self.sat.storage_capacity:
-            self.will_task_complete = False        
+            self.expect_task_to_complete = False        
         elif self.sat.pct_power() < 0.1:
             # Power is hard to estimate so we will just check if the power is less than 10%
-            self.will_task_complete = False
+            self.expect_task_to_complete = False
+
+        if self.task.is_charge and self.sat.in_eclipse():
+            self.expect_task_to_complete = False
+
+        if self.task.is_desat:
+            self.expect_task_to_complete = True
 
 
         self.final_storage = None
@@ -36,22 +41,46 @@ class SatelliteTask:
         self.final_storage_change = None
         self.final_power_change = None
 
+        self.power_storage_valid = False
 
-    def task_complete(self):
+        self.expected_action = None
+        if self.task.is_charge:
+            self.expected_action = Actions.CHARGE
+        elif self.task.is_desat:
+            self.expected_action = Actions.DESAT
+        elif self.task.is_collection:
+            self.expected_action = Actions.COLLECTION
+        elif self.task.is_data_downlink:
+            self.expected_action = Actions.DOWNLINK
+        else:
+            self.expected_action = Actions.DRIFT
+
+        self.actual_action = None
+
+
+    def task_complete(self, action):
+        self.actual_action = action
+
         self.final_storage = self.sat.storage_level
         self.final_power = self.sat.dynamics.battery_charge
         self.final_alive = self.sat.is_alive()
 
-        if self.final_power > 0.03 and self.final_storage < 0.97:
-            self.will_task_complete = True
+        if self.sat.pct_power() > 0.03 and self.sat.pct_storage() < 0.97:
+            self.power_storage_valid = True
 
         self.final_storage_change = self.final_storage - self.init_storage
         self.final_power_change = self.final_power - self.init_power
 
     @property
     def sat_task_valid(self):
-        return self.will_task_complete and self.final_alive
-
+        if self.task.is_charge:
+            return not self.sat.in_eclipse()
+        if self.task.is_desat:
+            return True
+        if self.task.is_data_downlink:
+            return True
+        # All collection tasks are valid if the power and storage are valid and the satellite is still alive
+        return self.power_storage_valid and self.final_alive and self.actual_action == self.expected_action
 
     @property
     def observation(self):
@@ -66,6 +95,12 @@ class SatelliteTask:
             'final_power_change': self.final_power_change,
             'task_type': self.task.get_task_type_str(),
             'sat_task_valid': self.sat_task_valid,
+            'expect_task_to_complete': self.expect_task_to_complete,
+            'power_storage_valid': self.power_storage_valid,
+            'pct_power': self.sat.pct_power(),
+            'pct_storage': self.sat.pct_storage(),
+            'expected_action': self.expected_action,
+            'actual_action': self.actual_action,
         }
     
 class Actions:
@@ -177,8 +212,9 @@ class Satellite:
         print(sat_stats)
 
     def _task_started(self, task, window_offset):
-        if task.is_data_downlink and window_offset == 0:
-            self.fsw.action_downlink()
+        self.fsw.action_drift()
+        if task.is_data_downlink: #and window_offset == 0:
+            self.fsw.action_downlink # Downlink checks if it is in range of a ground station? Not sure if it works well.
             self.action = Actions.DOWNLINK
         elif task.is_charge:
             if not self.in_eclipse():
@@ -190,15 +226,15 @@ class Satellite:
         elif task.is_desat:
             self.fsw.action_desat()
             self.action = Actions.DESAT
-        elif task.is_collection:
+        elif task.is_collection and self.pct_power() > 0.2 and self.pct_storage() < 0.9:
             self.fsw.action_nadir_scan(task.r_LP_P)
             self.action = Actions.COLLECTION
-        elif task.task_type == TaskType.NOOP:
+        elif task.is_noop:
             self.fsw.action_drift()
             self.action = Actions.DRIFT
         else:
-            print(f"FSW: Satellite {self.name} unknown task type: {task.task_type}")
             self.fsw.action_drift()
+            self.action = Actions.DRIFT
 
     def start_action(self, task, window_offset, start_time, end_time):
         """
@@ -213,13 +249,13 @@ class Satellite:
         """
         Called after running the simulation step
         """
-        self.sat_task.task_complete()
+        self.sat_task.task_complete(self.action)
         task.complete(self, end_time)
         self.last_action_reward = task.get_reward()
     
     def get_task_storage_change(self, task):
         if task.is_data_downlink:
-            return -self.dynamics.transmitter.nodeBaudRate * self.simulator.max_step_duration_sec
+            return self.dynamics.transmitter.nodeBaudRate * self.simulator.max_step_duration_sec
         else:
             return self.dynamics.instrument.nodeBaudRate * self.simulator.max_step_duration_sec
 
@@ -329,7 +365,7 @@ def create_random_satellite(name, simulator, utc_init):
         'rwBasePower': 0.4, 
         'rwMechToElecEfficiency': 0.0, 
         'rwElecToMechEfficiency': 0.5, 
-        'panelArea': 2.0, # Charge with 2 panel area and 100% efficiency allows full recharge in 200 seconds
+        'panelArea': 1.0, # Charge with 2 panel area and 100% efficiency allows full recharge in 200 seconds
         'panelEfficiency': 1.0, 
         'nHat_B': np.array([ 0,  0, -1]), 
         'mass': 330, 

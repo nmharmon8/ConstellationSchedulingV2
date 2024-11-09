@@ -71,6 +71,10 @@ class Task:
     @property
     def is_collection(self):
         return self.task_type == TaskType.RF or self.task_type == TaskType.IMAGING
+
+    @property
+    def is_noop(self):
+        return self.task_type == TaskType.NOOP
     
     def get_task_type_str(self):
         return TaskType.to_str(self.task_type)
@@ -307,7 +311,7 @@ class CollectTask(PositionTask):
         return False
     
     def get_reward(self):
-        reward = 0
+        reward = -0.001
         if self.is_collection_valid():
             reward = self.priority
         return reward
@@ -319,6 +323,24 @@ class DownlinkTask(PositionTask):
         self.priority = priority
         self.sats_collecting = []
 
+
+    # def add_window(self, satellite, new_window):
+
+    #     print(f"Adding window to downlink task: {new_window}")
+
+    #     window_start = new_window[0]
+    #     window_end = new_window[1]
+
+    #     while window_start < window_end:
+    #         index = int(window_start // self.max_step_duration)
+    #         while index >= len(self.collection_windows[satellite.id]):
+    #             self.collection_windows[satellite.id].extend([0] * max(1, len(self.collection_windows[satellite.id])))
+    #         index_end = self.max_step_duration * (index + 1)
+    #         duration = min(index_end, window_end) - window_start
+    #         if duration > 120:
+    #             self.collection_windows[satellite.id][index] = 1
+    #         window_start = index_end
+
     @staticmethod
     def create_data_downlink_tasks(config, radius=orbitalMotion.REQ_EARTH * 1e3):
         ground_stations = config['groundStations']
@@ -329,7 +351,7 @@ class DownlinkTask(PositionTask):
             position = lla2ecef(station['lat'], station['long'], radius)
             
             # Task Duration
-            task_duration = 10
+            task_duration = 100
 
             task = DownlinkTask(
                 name=f"tgt-{station['name']}",
@@ -337,7 +359,7 @@ class DownlinkTask(PositionTask):
                 priority=config['downlink_task_priority'],
                 task_duration=task_duration,
                 max_step_duration=config['max_step_duration'],
-                min_elev=config['task_min_elev']
+                min_elev=0.17
             )
             
             ground_station_tasks.append(task)
@@ -348,7 +370,9 @@ class DownlinkTask(PositionTask):
         return False 
     
     def get_reward(self):
-        reward = self.priority * self.count_valid_collections()
+        n_valid_collections = self.count_valid_collections()
+        reward = self.priority * n_valid_collections
+        reward -= 0.1 * (len(self.sats_collecting) - n_valid_collections)           
         return reward
 
     def step(self):

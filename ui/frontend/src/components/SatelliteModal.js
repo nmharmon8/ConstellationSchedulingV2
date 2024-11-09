@@ -244,7 +244,7 @@ const SatelliteModal = ({ open, onClose, satelliteId }) => {
           </div>
         )}
 
-        {/* Replace the current sat_task section */}
+        {/* Current Task */}
         {sat_task && (
           <div className="satellite-info-section">
             <Typography className="satellite-info-title">
@@ -261,6 +261,20 @@ const SatelliteModal = ({ open, onClose, satelliteId }) => {
               </span>
             </div>
             
+            {/* Add new fields here */}
+            <div className="satellite-metric">
+              <span className="satellite-metric-label">Expected Completion</span>
+              <span className={`satellite-metric-value ${sat_task.expect_task_to_complete ? 'status-alive' : 'status-dead'}`}>
+                {sat_task.expect_task_to_complete ? 'Yes' : 'No'}
+              </span>
+            </div>
+            <div className="satellite-metric">
+              <span className="satellite-metric-label">Power/Storage Valid</span>
+              <span className={`satellite-metric-value ${sat_task.power_storage_valid ? 'status-alive' : 'status-dead'}`}>
+                {sat_task.power_storage_valid ? 'Valid' : 'Invalid'}
+              </span>
+            </div>
+
             {/* Initial States */}
             <div className="satellite-metric">
               <span className="satellite-metric-label">Initial Storage</span>
@@ -314,6 +328,34 @@ const SatelliteModal = ({ open, onClose, satelliteId }) => {
               <span className="satellite-metric-label">Δ Power</span>
               <span className="satellite-metric-value">
                 {sat_task.final_power_change.toFixed(2)} W
+              </span>
+            </div>
+
+            {/* Add percentage metrics */}
+            <div className="satellite-metric">
+              <span className="satellite-metric-label">Power %</span>
+              <span className="satellite-metric-value">
+                {(sat_task.pct_power * 100).toFixed(1)}%
+              </span>
+            </div>
+            <div className="satellite-metric">
+              <span className="satellite-metric-label">Storage %</span>
+              <span className="satellite-metric-value">
+                {(sat_task.pct_storage * 100).toFixed(1)}%
+              </span>
+            </div>
+
+            {/* Add new action fields */}
+            <div className="satellite-metric">
+              <span className="satellite-metric-label">Expected Action</span>
+              <span className="satellite-metric-value">
+                {sat_task.expected_action}
+              </span>
+            </div>
+            <div className="satellite-metric">
+              <span className="satellite-metric-label">Actual Action</span>
+              <span className="satellite-metric-value">
+                {sat_task.actual_action}
               </span>
             </div>
           </div>

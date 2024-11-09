@@ -1,5 +1,6 @@
 import numpy as np  
-from datetime import datetime
+from datetime import datetime, timedelta
+import random
 
 from rl.sat import Satellite, create_random_satellite
 from rl.tasks.task_manager import TaskManager
@@ -13,16 +14,13 @@ CONSTANT_DATETIME = datetime(2023, 1, 1, 0, 0, 0).strftime("%Y %b %d %H:%M:%S.%f
 
 from bsk_rl.utils.orbital import random_epoch
 
-def get_default_world_args():
-    return {'planetRadius': 6378136.6, 'baseDensity': 1.22, 'scaleHeight': 8000.0, 'utc_init': random_epoch(), 'groundStationsData': [{'name': 'Boulder', 'lat': 40.009971, 'long': -105.243895, 'elev': 1624}, {'name': 'Merritt', 'lat': 28.3181, 'long': -80.666, 'elev': 0.9144}, {'name': 'Singapore', 'lat': 1.3521, 'long': 103.8198, 'elev': 15}, {'name': 'Weilheim', 'lat': 47.8407, 'long': 11.1421, 'elev': 563}, {'name': 'Santiago', 'lat': -33.4489, 'long': -70.6693, 'elev': 570}, {'name': 'Dongara', 'lat': -29.2452, 'long': 114.9326, 'elev': 34}, {'name': 'Hawaii', 'lat': 19.8968, 'long': -155.5828, 'elev': 9}], 'groundLocationPlanetRadius': 6378136.6, 'gsMinimumElevation': 0.17453292519943295, 'gsMaximumRange': -1}
-
 from bsk_rl.sim.world import GroundStationWorldModel
 
-# def sec2nano(t):
-#     return int(t * 1e9)
-
-# def nano2sec(t):
-#     return t * 1e-9
+def get_random_utc_init():
+    # Get the current time plus a random interval between 0 and 24 hours
+    now = datetime.now()
+    random_time = now + timedelta(hours=random.randint(0, 24))
+    return random_time.strftime("%Y %b %d %H:%M:%S.%f (UTC)")
 
 class Simulator(SimulationBaseClass.SimBaseClass):
 
@@ -39,12 +37,31 @@ class Simulator(SimulationBaseClass.SimBaseClass):
         self.max_tasks = config['max_tasks']
         self.n_sats = config['n_sats']
 
+        # self.utc_init = get_random_utc_init()
+        self.utc_init = datetime.now().strftime("%Y %b %d %H:%M:%S.%f (UTC)")
+
+        print(f"My utc_init: {self.utc_init}")
+
+        # Build the args for the world model
+        world_args = {
+            'groundStationsData': config['groundStations'],
+            'planetRadius': 6378136.6,
+            'baseDensity': 1.22,
+            'scaleHeight': 8000.0,
+            'groundLocationPlanetRadius': 6378136.6, 
+            'gsMinimumElevation': 0.017453292519943295, 
+            'gsMaximumRange': -1
+        } 
+
         
         self.fsw_list = {}
         self.dynamics_list = {}
-        self.world = GroundStationWorldModel(self, self.sim_rate, **get_default_world_args())
+        self.world = GroundStationWorldModel(self, world_rate=self.sim_rate, utc_init=self.utc_init, **world_args)
         self.task_manager = TaskManager(self.config, self.action_def)
-        self.utc_init = datetime.now().strftime("%Y %b %d %H:%M:%S.%f (UTC)")
+        # Can't just init to current time as you get a improper sampling of eciple or not
+        # self.utc_init = datetime.now().strftime("%Y %b %d %H:%M:%S.%f (UTC)")
+        # Runs encredibly slowly if you use any random_epoch()
+        
         self.satellites = [create_random_satellite(f"EO-{i}", simulator=self, utc_init=self.utc_init) for i in range(self.n_sats)]
         
         self.cum_reward = 0
