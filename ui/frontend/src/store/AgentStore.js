@@ -20,54 +20,113 @@ export const AgentProvider = ({ children }) => {
   // Interpolated positions is a dictionary with satellite ids as keys and list of lat/lon tuples
   const [interpolatedPositions, setInterpolatedPositions] = useState({});
   const [currentActionsAndObs, setCurrentActionsAndObs] = useState(null);
-
-  const autoStepTimer = useRef(null);
+  const [cumulativeReward, setCumulativeReward] = useState(0);
+  const [completedTasks, setCompletedTasks] = useState([]);
+  const [taskGPTMessages, setTaskGPTMessages] = useState([]);
+  const [isTaskGPTModalOpen, setIsTaskGPTModalOpen] = useState(false);
+  const [isTaskGPTProcessing, setIsTaskGPTProcessing] = useState(false);
 
   // Initialize Socket.IO
   const socketRef = useRef(null);
 
   useEffect(() => {
-    // Connect to Socket.IO server
-    socketRef.current = io('http://localhost:5000');
+    // Configure Socket.IO with reconnection options
+    socketRef.current = io('http://localhost:5000', {
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      timeout: 20000,
+    });
 
     // Listen for connection
     socketRef.current.on('connect', () => {
       console.log('Connected to Socket.IO server');
+      // Call get initial state
+      fetch('/api/initial_state', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }).then(response => {
+        if (response.ok) {
+          console.log('Initial state fetched');
+        }
+      });
+    });
+
+    // Add connection error handling
+    socketRef.current.on('connect_error', (error) => {
+      console.log('Connection error:', error);
+      setError('Socket connection error. Attempting to reconnect...');
+    });
+
+    // Add reconnect listeners
+    socketRef.current.on('reconnect', (attemptNumber) => {
+      console.log('Reconnected on attempt:', attemptNumber);
+      setError(null);
+    });
+
+    socketRef.current.on('reconnect_attempt', (attemptNumber) => {
+      console.log('Attempting to reconnect:', attemptNumber);
+    });
+
+    socketRef.current.on('disconnect', (reason) => {
+      console.log('Disconnected:', reason);
+      if (reason === 'io server disconnect') {
+        // the disconnection was initiated by the server, reconnect manually
+        socketRef.current.connect();
+      }
+      // else the socket will automatically try to reconnect
     });
 
     // Listen for step updates
     socketRef.current.on('step_update', (data) => {
+
+      if (isResetting) return;
+
       setInterpolatedPositions(data.interpolated_sat_positions);
       setCurrentSatState(data.current_sat_state);
-    });
+      setTasks(data.tasks);
+      setCompletedTasks(data.completed_tasks);
+      setCurrentActionsAndObs(data.current_acts_obs);
 
-    socketRef.current.on('tasks', (data) => {
-      setTasks(data);
+      const newCurrentTasksBeingExecuted = {};
+      Object.entries(data.current_acts_obs.sat_to_act).forEach(([satId, taskIndex]) => {
+        newCurrentTasksBeingExecuted[satId] = data.current_acts_obs.sat_to_tasks[satId][taskIndex];
+      });
+      setCurrentTasksBeingExecuted(newCurrentTasksBeingExecuted);
+      
     });
 
     // Listen for agent reset
     socketRef.current.on('agent_reset', (data) => {
+      setIsResetting(false);
+      setIsRunning(false);
+      setIsAutoRunning(false);
       setCurrentSatState(null);
-      setTasks([]);
+      setTasks(data.tasks);
       setInterpolatedPositions({});
       setError(null);
-      setLoading(true);
+      setLoading(false);
+      setObservationInspector(null);
+      setCurrentTasksBeingExecuted({});
+      setCurrentActionsAndObs(null);
+      setCumulativeReward(0)
     });
 
-    // Add new listener for current actions and observations
-    socketRef.current.on('current_acts_obs', (data) => {
-      setCurrentActionsAndObs(data);
-      // for each satellite id data.sat_to_act[sat_id] is the index of the task that the satellite is currently executing
-      // data.sat_to_tasks[sat_id] is the list of tasks that the satellite can execute
-      // we can use this to update the current tasks being executed
-      const newCurrentTasksBeingExecuted = {};
-      Object.entries(data.sat_to_act).forEach(([satId, taskIndex]) => {
-        newCurrentTasksBeingExecuted[satId] = data.sat_to_tasks[satId][taskIndex];
-      });
-      setCurrentTasksBeingExecuted(newCurrentTasksBeingExecuted);
+    // Add new tasks_updated listener
+    socketRef.current.on('tasks_updated', (updatedTasks) => {
+      setTasks(updatedTasks);
     });
 
-    fetchTasks();
+    // Add TaskGPT message listener
+    socketRef.current.on('task_gpt_info', (data) => {
+      setTaskGPTMessages(prev => [...prev, data]);
+      if (data.done) {
+        setIsTaskGPTProcessing(false);
+      }
+    });
 
     // Cleanup on unmount
     return () => {
@@ -123,7 +182,6 @@ export const AgentProvider = ({ children }) => {
       }
       const data = await response.json();
       console.log(`Fetched observation inspector: ${data}`);
-      console.log(data);
       setObservationInspector(data);
     } catch (err) {
       setError(`Failed to fetch observation inspector: ${err.message}`);
@@ -134,22 +192,48 @@ export const AgentProvider = ({ children }) => {
 
 
   // Start Automatic Stepping
-  const startAutoStep = () => {
+  const startAutoStep = async () => {
     if (isAutoRunning) return;
-    setIsAutoRunning(true);
-    takeStep();
-    autoStepTimer.current = setInterval(() => {
-      takeStep();
-    }, 3000);
+    try {
+      const response = await fetch('/api/run/3000', { // 3000ms interval
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!response.ok) {
+        setError(`Failed to start auto-stepping: ${response.statusText}`);
+        return;
+      }
+      
+      setIsAutoRunning(true);
+    } catch (err) {
+      setError(`Failed to start auto-stepping: ${err.message}`);
+      console.log(`Failed to start auto-stepping: ${err.message}`);
+    }
   };
 
   // Pause Automatic Stepping
-  const pauseAutoStep = () => {
-    if (autoStepTimer.current) {
-      clearInterval(autoStepTimer.current);
-      autoStepTimer.current = null;
+  const pauseAutoStep = async () => {
+    try {
+      const response = await fetch('/api/pause', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!response.ok) {
+        setError(`Failed to pause auto-stepping: ${response.statusText}`);
+        return;
+      }
+      
+      setIsAutoRunning(false);
+    } catch (err) {
+      setError(`Failed to pause auto-stepping: ${err.message}`);
+      console.log(`Failed to pause auto-stepping: ${err.message}`);
     }
-    setIsAutoRunning(false);
   };
 
   // Updated Reset Agent Function
@@ -166,11 +250,8 @@ export const AgentProvider = ({ children }) => {
       setObservationInspector(null);
       setCurrentTasksBeingExecuted({});
       setCurrentActionsAndObs(null);
-
-      if (isAutoRunning) {
-        pauseAutoStep();
-      }
-
+      setCumulativeReward(0);
+      
       const response = await fetch('/api/reset', {
         method: 'POST',
         headers: {
@@ -185,12 +266,6 @@ export const AgentProvider = ({ children }) => {
         return;
       }
 
-      const data = await response.json();
-      console.log(data.message);
-
-      await fetchTasks();
-      setIsResetting(false);
-      setLoading(false);
     } catch (err) {
       setError(err.message);
       setIsResetting(false);
@@ -202,6 +277,66 @@ export const AgentProvider = ({ children }) => {
 
   const clearError = () => {
     setError(null);
+  };
+
+  // Add new createTask function
+  const createTask = async (taskData) => {
+    try {
+      const response = await fetch('/api/create_task', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: taskData.name,
+          lat: taskData.lat,
+          lon: taskData.lon,
+          priority: taskData.priority,
+          task_type: taskData.taskType,
+          min_elev: taskData.minElev,
+          duration: taskData.duration
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        setError(`Failed to create task: ${errorData.error || response.statusText}`);
+        return null;
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (err) {
+      setError(`Failed to create task: ${err.message}`);
+      console.error(`Failed to create task: ${err.message}`);
+      return null;
+    }
+  };
+
+  const generateTask = async (prompt) => {
+    try {
+      setTaskGPTMessages([]); // Clear previous messages
+      setIsTaskGPTModalOpen(true);
+      setIsTaskGPTProcessing(true);
+
+      const response = await fetch('/api/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ prompt }),
+      });
+
+      if (!response.ok) {
+        setError(`Failed to generate task: ${response.statusText}`);
+        setIsTaskGPTProcessing(false);
+        return null;
+      }
+    } catch (err) {
+      setError(`Failed to generate task: ${err.message}`);
+      setIsTaskGPTProcessing(false);
+      return null;
+    }
   };
 
   const value = {
@@ -224,6 +359,14 @@ export const AgentProvider = ({ children }) => {
     fetchObservationInspector,
     observationInspector,
     currentTasksBeingExecuted,
+    cumulativeReward,
+    setCumulativeReward,
+    createTask,
+    generateTask,
+    taskGPTMessages,
+    isTaskGPTModalOpen,
+    setIsTaskGPTModalOpen,
+    isTaskGPTProcessing,
   };
 
   return (

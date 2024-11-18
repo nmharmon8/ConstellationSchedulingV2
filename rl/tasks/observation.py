@@ -82,13 +82,11 @@ class Observation:
         obs = self.observation
         obs_norm_terms = self.config['observation_normalization_terms']
         normalized_obs = {k:obs[k] / obs_norm_terms[k] for k in self.config['observation_keys']}
-
         for k, v in normalized_obs.items():
             if np.abs(v) > 1:
                 print(f"Observation out of bounds: {k} - {v}")
                 print(self)
                 raise Exception(f"Observation out of bounds: {k} - {v}")
-
         return normalized_obs
     
     def get_normalized_observation_numpy(self):
@@ -111,10 +109,12 @@ class Observations:
         self.current_time = current_time
         self.satellite = satellite
         self.upcoming_tasks = upcoming_tasks
-        # self.action_def = action_def
         self.config = config
         self.n_access_windows = config['n_access_windows']
         self._observations = self._create_observations()
+
+    def __len__(self):
+        return len(self._observations)
 
     def _create_observations(self):
         observations = []
@@ -142,6 +142,12 @@ class Observations:
             'numpy': [obs.get_normalized_observation_numpy() for obs in self._observations]
         }
         return debug_observation
+    
+    def get_first_collect_task(self):
+        for idx, obs in enumerate(self._observations):
+            if obs.task.is_collection:
+                return obs.task, self._observations[idx].get_window_offset(), idx
+        return None, None, None
 
     
 

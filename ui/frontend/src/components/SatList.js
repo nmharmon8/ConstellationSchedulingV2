@@ -56,7 +56,15 @@ function SatList() {
             );
           }
 
-          const eclipseStatus = sat.observation.in_eclipse;
+          const { observation } = sat;
+          const { sat_task } = observation;
+          const eclipseStatus = observation.in_eclipse;
+          const isAlive = observation.is_alive;
+          const taskRequested = sat_task?.task_type || 'N/A';
+          const expectedAction = sat_task?.expected_action || 'N/A';
+          const actualAction = sat_task?.actual_action || 'N/A';
+
+          const shortSatName = satId.split('_')[0];
 
           return (
             <div 
@@ -66,40 +74,49 @@ function SatList() {
               style={{ cursor: 'pointer' }}
             >
               <div className="sat-header">
-                <h3>{satId}</h3>
-                <span className={`eclipse-status ${eclipseStatus ? 'in-eclipse' : ''}`}>
-                  {eclipseStatus ? '🌑 Eclipse' : '☀️ Sunlight'}
-                </span>
+                <h3>{shortSatName}</h3>
+                <div className="sat-status-container">
+                  <span className={`eclipse-status ${eclipseStatus ? 'in-eclipse' : ''}`}>
+                    {eclipseStatus ? '🌑 Eclipse' : '☀️ Sunlight'}
+                  </span>
+                  <span className={`sat-status ${isAlive ? 'status-alive' : 'status-dead'}`}>
+                    {isAlive ? '🟢 Active' : '🔴 Fault'}
+                  </span>
+                </div>
               </div>
               
               <div className="sat-metrics">
+                <div className="metric task-info">
+                  {taskRequested} → {actualAction}
+                </div>
+
                 <div className="metric">
                   <div className="metric-header">
                     <span>Storage</span>
-                    <span>{(sat.observation.storage_percentage * 100).toFixed(1)}%</span>
+                    <span>{(observation.storage_percentage * 100).toFixed(1)}%</span>
                   </div>
                   <LinearProgress 
                     variant="determinate" 
-                    value={sat.observation.storage_percentage * 100}
+                    value={observation.storage_percentage * 100}
                     className="storage-progress"
                   />
                   <Typography variant="caption" className="metric-detail">
-                    {(sat.observation.storage_level / 1e9).toFixed(2)}GB / {(sat.observation.storage_capacity / 1e9).toFixed(2)}GB
+                    {(observation.storage_level / 1e9).toFixed(2)}GB / {(observation.storage_capacity / 1e9).toFixed(2)}GB
                   </Typography>
                 </div>
 
                 <div className="metric">
                   <div className="metric-header">
                     <span>Power</span>
-                    <span>{(sat.observation.power_percentage * 100).toFixed(1)}%</span>
+                    <span>{(observation.power_percentage * 100).toFixed(1)}%</span>
                   </div>
                   <LinearProgress 
                     variant="determinate" 
-                    value={sat.observation.power_percentage * 100}
+                    value={observation.power_percentage * 100}
                     className="power-progress"
                   />
                   <Typography variant="caption" className="metric-detail">
-                    {(sat.observation.power_level / 1e3).toFixed(2)}kW / {(sat.observation.power_capacity / 1e3).toFixed(2)}kW
+                    {(observation.power_level / 1e3).toFixed(2)}kW / {(observation.power_capacity / 1e3).toFixed(2)}kW
                   </Typography>
                 </div>
               </div>

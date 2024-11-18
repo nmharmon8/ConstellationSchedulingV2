@@ -21,6 +21,8 @@ class TaskManager:
         self.n_tasks_collected = 0
         self.cumlitive_reward = 0
 
+        self.completed_tasks = []
+
     def get_observations(self, satellite, current_time):
         self.calculate_access_windows(satellite, calculation_start=current_time, duration=self.max_step_duration * self.n_access_windows)
         upcoming_tasks = self.get_upcoming_tasks(satellite, current_time)
@@ -32,6 +34,10 @@ class TaskManager:
         self.tasks = self.get_random_tasks(self.n_tasks)
         self.n_tasks_collected = 0
         self.cumlitive_reward = 0
+
+
+    def insert_new_task(self, task):
+        self.tasks.append(task)
 
     def task_manager_complete_actions(self, actions, start_time, end_time):
         reward = 0
@@ -49,6 +55,7 @@ class TaskManager:
         for task in self.tasks:
             reward += task.step()
         self.cumlitive_reward += reward
+        self.completed_tasks.extend([task for task in self.tasks if task.task_complete])
         self.tasks = [task for task in self.tasks if not task.task_complete]
         return reward
 

@@ -30,6 +30,48 @@ def set_seed(seed):
 
 set_seed(42)
 
+class SatelliteGuard:
+    def __init__(self, env):
+        self.env = env
+
+    
+    def guard_actions(self, actions):
+        actions = list(actions)
+        sim = self.env.simulator
+        sats = sim.satellites
+        for i, (sat, action) in enumerate(zip(sats, actions)):
+            observations = sim.task_manager.get_observations(sat, sim.sim_time)
+            if sat.should_charge():
+                actions[i] = 0
+            elif sat.should_desat():
+                actions[i] = 1
+            if sat.should_downlink():
+                task, window_offset = observations.action_to_task(2)
+                if window_offset == 0:
+                    actions[i] = 2
+                else:
+                    # If storage is full but no downlink is available, then we should just wait
+                    actions[i] = len(observations) - 1
+
+            else:
+
+                if sat.pct_power() < 0.2 or sat.pct_storage() > 0.9:
+                    actions[i] = len(observations) - 1
+                else:
+                    task, window_offset = observations.action_to_task(action)
+                    if window_offset == 0:
+                        actions[i] = action
+                    else:
+                        task, offset, idx = observations.get_first_collect_task()
+                        if task is not None and offset == 0:
+                            actions[i] = idx
+                        else:
+                            actions[i] = len(observations) - 1
+
+
+
+        return actions
+
 class Agent:
 
     def __init__(self, config, model_name, greedy=False):
@@ -84,7 +126,7 @@ class Agent:
         print(f"Restoring from {checkpoint}")
         self.algo.restore(checkpoint)
 
-        # config['env']['time_limit'] = 5700
+        config['env']['time_limit'] = 1000000
         config['env']['min_tasks'] = 500
         config['env']['max_tasks'] = 500
         
@@ -97,15 +139,47 @@ class Agent:
         self.env = SatelliteTasking(config['env'])
         self.obs, self.info = self.env.reset(seed=42)
         self.total_reward = 0
+        self.guard = SatelliteGuard(self.env)
 
     def get_task_info(self):
         return [task.task_info() for task in self.env.simulator.task_manager.tasks]
+    
+    def get_completed_tasks(self):
+        return [task.task_info() for task in self.env.simulator.task_manager.completed_tasks]
     
     def get_sat_info(self):
         return [sat.get_info() for sat in self.env.simulator.satellites]
 
     def get_info(self):
-        return self.info
+        return StepInfo(self.info)
+    
+    def add_new_task(self, name, lat, lon, priority, task_type, min_elev, duration):
+        from rl.tasks.task import CollectTask
+        from bsk_rl.utils.orbital import lla2ecef
+        import uuid
+        from Basilisk.utilities import orbitalMotion
+
+        # Using Earth radius as altitude since we're dealing with ground targets
+        r_LP_P = lla2ecef(lat, lon, orbitalMotion.REQ_EARTH * 1e3)
+        # must convert lat, lon to r_LP_P
+
+        task = CollectTask(
+            name=f"{name}-{uuid.uuid4()}",
+            r_LP_P=r_LP_P,
+            priority=priority,
+            simultaneous_collects_required=1,  # Default to single satellite collection
+            task_duration=duration,
+            task_type=task_type,
+            storage_size=500,  # Default storage size in MB
+            max_step_duration=200,
+            min_elev=min_elev
+        )
+
+        self.env.simulator.task_manager.insert_new_task(task)
+
+
+
+
 
     def take_step(self):
 
@@ -114,11 +188,6 @@ class Agent:
         else:
             print("Computing action without exploration")
             action = self.algo.compute_single_action(self.obs, explore=False)
-
-        print(f"Action: {action}")
-        # action = [self.step % 4] 
-        # action = [2] * 10
-        # action = [0] * 10
 
         next_obs, reward, done, truncated, info = self.env.step(action)
 

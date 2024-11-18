@@ -323,24 +323,6 @@ class DownlinkTask(PositionTask):
         self.priority = priority
         self.sats_collecting = []
 
-
-    # def add_window(self, satellite, new_window):
-
-    #     print(f"Adding window to downlink task: {new_window}")
-
-    #     window_start = new_window[0]
-    #     window_end = new_window[1]
-
-    #     while window_start < window_end:
-    #         index = int(window_start // self.max_step_duration)
-    #         while index >= len(self.collection_windows[satellite.id]):
-    #             self.collection_windows[satellite.id].extend([0] * max(1, len(self.collection_windows[satellite.id])))
-    #         index_end = self.max_step_duration * (index + 1)
-    #         duration = min(index_end, window_end) - window_start
-    #         if duration > 120:
-    #             self.collection_windows[satellite.id][index] = 1
-    #         window_start = index_end
-
     @staticmethod
     def create_data_downlink_tasks(config, radius=orbitalMotion.REQ_EARTH * 1e3):
         ground_stations = config['groundStations']

@@ -12,8 +12,8 @@ training:
 
 training_args:
   lr: 0.00003
-  gamma: 0.95
-  train_batch_size: 256
+  gamma: 0.98
+  train_batch_size: 360
   sgd_minibatch_size: 64 # Default is 128
   num_sgd_iter: 16 # Default is 30
   lambda_: 0.95
@@ -55,7 +55,7 @@ model:
 env:
   sim_rate: 1.0
   max_step_duration: &max_step_duration 200.0
-  time_limit: 21400 #11400 # about 2 orbits
+  time_limit: 3000 # 15 steps #21400 #11400 # about 2 orbits
   n_access_windows: &n_access_windows 20
   n_sats: 10
 
@@ -78,12 +78,12 @@ env:
   desat_task_priority: 0.0
 
   observation_keys: 
-    - 'x'
-    - 'y'
-    - 'z'
+    # - 'x'
+    # - 'y'
+    # - 'z'
     - 'window_index_offset'
     - 'priority'
-    - 'n_required_collects'
+    # - 'n_required_collects'
     - 'is_data_downlink'
     - 'is_charge_task'
     - 'is_desat_task'
@@ -115,7 +115,7 @@ env:
     x: 1
     y: 1
     z: 1
-    window_index_offset: 200
+    window_index_offset: *n_access_windows
     priority: 1
     n_required_collects: *max_sat_coordination
     is_data_downlink: 1

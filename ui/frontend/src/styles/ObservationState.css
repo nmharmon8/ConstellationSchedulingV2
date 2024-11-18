@@ -1,26 +1,38 @@
 .observation-table-container {
-  margin-top: 16px;
-  background: var(--panel-gradient);
-  border-radius: 8px;
-  border: 1px solid rgba(100, 255, 218, 0.1);
-  box-shadow: var(--border-glow);
-  overflow-x: auto;
+  background: rgba(10, 25, 47, 0.95);
+  border-top: 1px solid rgba(100, 255, 218, 0.1);
+  width: 100%;
+  max-height: 500px;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+  margin: 0;
+  padding: 0;
+  padding-top: 0;
 }
 
 .observation-table {
-  width: 100%;
+  width: auto;
+  min-width: 100%;
+  margin: 0;
   border-collapse: separate;
   border-spacing: 0;
   color: var(--text-primary);
+  white-space: nowrap;
 }
 
 /* Header styles */
 .observation-table thead {
-  background: rgba(17, 34, 64, 0.95);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: rgb(17, 34, 64);
+  display: table-header-group;
+  margin-right: 8px;
 }
 
 .observation-table th {
-  padding: 12px 16px;
+  padding: 6px 8px;
   font-weight: 600;
   text-align: center;
   border-bottom: 2px solid var(--accent-blue);
@@ -28,7 +40,9 @@
   text-transform: uppercase;
   font-size: 0.85rem;
   letter-spacing: 0.05em;
-  min-width: 50px;
+  min-width: 40px;
+  background: rgb(17, 34, 64);
+  padding-right: 16px;
 }
 
 /* Body styles */
@@ -80,7 +94,7 @@
 /* Scrollbar styling */
 .observation-table-container::-webkit-scrollbar {
   width: 8px;
-  height: 10px;
+  height: 8px;
 }
 
 .observation-table-container::-webkit-scrollbar-track {
@@ -114,10 +128,43 @@
 /* Add wheel scroll behavior */
 .observation-table-container {
   scrollbar-width: thin;
-  scrollbar-color: var(--accent-blue) rgba(17, 34, 64, 0.95);
+  scrollbar-color: var(--accent-blue) rgb(17, 34, 64);
 }
 
 /* Remove scrollbar arrows */
 .observation-table-container::-webkit-scrollbar-button {
   display: none;
+}
+
+/* Ensure tbody can scroll */
+.observation-table tbody {
+  display: table-row-group;
+}
+
+/* Make sure tr and td elements maintain proper layout */
+.observation-table tr {
+  display: table-row;
+}
+
+.observation-table td,
+.observation-table th {
+  display: table-cell;
+}
+
+/* Add specific styles for horizontal scrollbar */
+.observation-table-container::-webkit-scrollbar-track:horizontal {
+  margin: 0 8px;
+}
+
+.observation-table-container::-webkit-scrollbar-thumb:horizontal {
+  background: linear-gradient(90deg, 
+    rgba(100, 255, 218, 0.8) 0%,
+    var(--accent-blue) 100%
+  );
+  border-radius: 4px;
+}
+
+/* Add styles for scrollbar corner */
+.observation-table-container::-webkit-scrollbar-corner {
+  background: rgba(17, 34, 64, 0.95);
 }

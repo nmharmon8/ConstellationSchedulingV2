@@ -22,11 +22,14 @@ const ObservationState = () => {
     setSelectedTask(null);
   };
 
-  const handleWheel = (event) => {
-    if (event.deltaY !== 0) {
-      event.preventDefault();
-      const container = event.currentTarget;
-      container.scrollLeft += event.deltaY;
+  const getDisplayTaskType = (taskType) => {
+    switch (taskType) {
+      case 'IMAGING':
+        return 'EO';
+      case 'DATA_DOWNLINK':
+        return 'Downlink';
+      default:
+        return taskType;
     }
   };
 
@@ -40,10 +43,7 @@ const ObservationState = () => {
   ));
 
   return (
-    <div 
-      className="observation-table-container"
-      onWheel={handleWheel}
-    >
+    <div className="observation-table-container">
       <table className="observation-table">
         <thead>
           <tr>
@@ -54,30 +54,52 @@ const ObservationState = () => {
           </tr>
         </thead>
         <tbody>
-          {
-          
-          
-          satIds.map(satId => {
-
+          {satIds.map(satId => {
             const tasks = currentActionsAndObs.sat_to_tasks[satId] || [];
             const activeTaskIndex = currentActionsAndObs.sat_to_act[satId];
+
+            // Annotate each task with its original index
+            const annotatedTasks = tasks.map((task, index) => ({
+              ...task,
+              originalIndex: index
+            }));
+            
+            // Separate COLLECTION tasks
+            const collectionTasks = annotatedTasks.filter(task => task.is_collection);
+            const otherTasks = annotatedTasks.filter(task => !task.is_collection);
+
+            // Reorder tasks: COLLECTION first, then others
+            const reorderedTasks = [...collectionTasks, ...otherTasks];
+
             return (
               <tr key={satId}>
                 <td className="sat-id">
                   {satId.split('_')[0]}
                 </td>
                 {[...Array(maxTasks)].map((_, index) => {
-                  const task = tasks[index];
-                  const isActive = index === activeTaskIndex;
+                  const task = reorderedTasks[index];
+                  if (!task) {
+                    return (
+                      <td
+                        key={index}
+                        className="task-cell empty"
+                        style={{ cursor: 'default' }}
+                      >
+                        -
+                      </td>
+                    );
+                  }
+
+                  const isActive = task.originalIndex === activeTaskIndex;
 
                   return (
                     <td
                       key={index}
-                      className={`task-cell ${isActive ? 'active' : ''} ${!task ? 'empty' : ''}`}
+                      className={`task-cell ${isActive ? 'active' : ''}`}
                       onClick={() => task && handleTaskClick(task)}
                       style={{ cursor: task ? 'pointer' : 'default' }}
                     >
-                      {task ? `${task.task_type_str}(${task.window_index_offset})` : '-'} 
+                      {task ? `${getDisplayTaskType(task.task_type_str)}(${task.window_index_offset})` : '-'} 
                     </td>
                   );
                 })}

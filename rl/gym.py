@@ -34,7 +34,6 @@ class SatelliteTasking(Env):
             self.worker_idx = 0
             self.num_workers = 1
             self.vector_env_index = 0
-            
 
         self.seed = self.worker_idx + self.vector_env_index * self.num_workers
         set_seeds(self.seed)
@@ -50,8 +49,8 @@ class SatelliteTasking(Env):
 
     def reset(self, seed=None, options=None):
         self.simulator = Simulator(self.config, self.action_def)
-        observations = self.simulator.reset()
-        return observations, {}
+        observations, info = self.simulator.reset()
+        return observations, info
 
     def step(self, actions):
         next_obs, reward, info = self.simulator.step(actions)

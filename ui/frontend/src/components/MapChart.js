@@ -16,8 +16,11 @@ import SatelliteModal from './SatelliteModal';
 import DownlinkStation from './DownlinkStation';
 import SatelliteMarker from './SatelliteMarker';
 import TaskModal from './TaskModal';
+import CreateTaskModal from './CreateTaskModal';
+import { geoEqualEarth } from "d3-geo";
+import ObservationState from './ObservationState';
 
-const STEP_DURATION = 3000; // 3 seconds
+const STEP_DURATION = 4000; // 4 seconds
 
 const MapChart = () => {
   const {
@@ -37,12 +40,41 @@ const MapChart = () => {
   const animationRef = useRef(null);
   const [selectedSatellite, setSelectedSatellite] = useState(null);
   const [selectedTask, setSelectedTask] = useState(null);
+  const [createTaskCoordinates, setCreateTaskCoordinates] = useState(null);
+
+  const [mapScale, setMapScale] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerWidth > 2000 ? 190 : 140;
+    }
+    return 190; // Default scale if window is undefined
+  });
 
   const taskColors = {
     RF: "#FF5722",
     IMAGING: "#2196F3",
     DATA_DOWNLINK: "#4CAF50"
   };
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth > 2000) {
+        setMapScale(190);
+      } else {
+        setMapScale(140);
+      }
+    };
+
+    // Initial check
+    handleResize();
+
+    // Add event listener
+    window.addEventListener('resize', handleResize);
+
+    // Cleanup event listener on unmount
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
 
   useEffect(() => {
     if (interpolatedPositions && Object.keys(interpolatedPositions).length > 0) {
@@ -103,6 +135,39 @@ const MapChart = () => {
 
   const handleTaskModalClose = () => {
     setSelectedTask(null);
+  };
+
+  const handleMapClick = (event) => {
+    // Ignore clicks on markers
+    if (event.target.closest('.satellite-marker') || event.target.closest('.marker-circle')) {
+      return;
+    }
+
+    const svg = event.target.closest('svg');
+    if (!svg) return;
+
+    // Get SVG's dimensions and bounds
+    const svgBounds = svg.getBoundingClientRect();
+    
+    // Calculate click position relative to SVG
+    const x = event.clientX - svgBounds.left;
+    const y = event.clientY - svgBounds.top;
+
+    // Create projection with same parameters as ComposableMap
+    const projection = geoEqualEarth()
+      .scale(mapScale - 50) // Adjust scale if necessary
+      .center([0, 0])
+      .rotate([-10, 0, 0])
+      .translate([svgBounds.width / 2, svgBounds.height / 2]);
+
+    // Convert screen coordinates to geographic coordinates
+    const [longitude, latitude] = projection.invert([x, y]);
+    
+    setCreateTaskCoordinates([longitude, latitude]);
+  };
+
+  const handleCreateTaskClose = () => {
+    setCreateTaskCoordinates(null);
   };
 
   if (loading) {
@@ -198,14 +263,17 @@ const MapChart = () => {
         <ComposableMap
           projection="geoEqualEarth"
           projectionConfig={{
-            scale: 140,
+            scale: mapScale, // Use the responsive scale here
             center: [0, 0],
             rotate: [-10, 0, 0],
           }}
           className="composable-map"
+          onClick={handleMapClick}
+          width={undefined}
+          height={undefined}
         >
           <Geographies geography={worldCountries}>
-            {({ geographies }) =>
+            {({ geographies, projection }) =>
               geographies.map((geo) => (
                 <Geography
                   key={geo.rsmKey}
@@ -301,6 +369,11 @@ const MapChart = () => {
             <CircularProgress color="inherit" />
           </div>
         )}
+        
+      </div>
+
+      <div className="observation-state-wrapper">
+        <ObservationState />
       </div>
 
       <SatelliteModal
@@ -313,6 +386,12 @@ const MapChart = () => {
         task={selectedTask}
         open={!!selectedTask}
         onClose={handleTaskModalClose}
+      />
+
+      <CreateTaskModal
+        open={!!createTaskCoordinates}
+        onClose={handleCreateTaskClose}
+        coordinates={createTaskCoordinates}
       />
     </div>
   );

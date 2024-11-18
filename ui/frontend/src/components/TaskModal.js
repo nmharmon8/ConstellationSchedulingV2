@@ -3,8 +3,7 @@ import { Dialog, DialogTitle, DialogContent, DialogActions, Button, Typography, 
 import './TaskModal.css';
 
 const TaskModal = ({ task, open, onClose }) => {
-  console.log('TaskModal props:', { task, open });
-  
+   
   if (!task) {
     return null;
   }

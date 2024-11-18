@@ -46,7 +46,7 @@ ppo_config.model.update(
 
 from ray.air.constants import TRAINING_ITERATION
 stop = {
-    TRAINING_ITERATION: 100000,
+    TRAINING_ITERATION: 1000000,
 }
 from ray.train import CheckpointConfig
 

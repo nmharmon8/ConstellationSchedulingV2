@@ -9,7 +9,7 @@ import './styles/App.css';
 function App() {
   return (
     <AgentProvider>
-      <ErrorDisplay />
+      {/* <ErrorDisplay /> */}
       <div className="app-container">
         <div className="panel side-panel">
           <SatList />

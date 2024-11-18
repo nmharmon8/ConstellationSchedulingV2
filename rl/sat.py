@@ -17,6 +17,7 @@ class SatelliteTask:
         self.init_storage = self.sat.storage_level
         self.init_power = self.sat.dynamics.battery_charge
         self.init_alive = self.sat.is_alive()
+        self.init_wheel_speeds = self.sat.dynamics.wheel_speeds_fraction
 
         self.predicted_storage_change = self.sat.get_task_storage_change(self.task)
         self.predicted_power_change = self.sat.get_power_change(self.task)
@@ -40,6 +41,7 @@ class SatelliteTask:
         self.final_alive = True
         self.final_storage_change = None
         self.final_power_change = None
+        self.final_wheel_speeds = None
 
         self.power_storage_valid = False
 
@@ -64,7 +66,7 @@ class SatelliteTask:
         self.final_storage = self.sat.storage_level
         self.final_power = self.sat.dynamics.battery_charge
         self.final_alive = self.sat.is_alive()
-
+        self.final_wheel_speeds = self.sat.dynamics.wheel_speeds_fraction
         if self.sat.pct_power() > 0.03 and self.sat.pct_storage() < 0.97:
             self.power_storage_valid = True
 
@@ -101,6 +103,8 @@ class SatelliteTask:
             'pct_storage': self.sat.pct_storage(),
             'expected_action': self.expected_action,
             'actual_action': self.actual_action,
+            'init_wheel_speeds': self.init_wheel_speeds,
+            'final_wheel_speeds': self.final_wheel_speeds,
         }
     
 class Actions:
@@ -158,6 +162,16 @@ class Satellite:
             # We are doing a collection or data downlink so power is being used
             return -self.dynamics.instrumentPowerSink.nodePowerOut * self.simulator.max_step_duration_sec
 
+    def should_charge(self):
+        return self.pct_power() < 0.2
+
+    def should_downlink(self):
+        return self.pct_storage() > 0.9
+    
+    def should_desat(self):
+        wheel_speeds = self.dynamics.wheel_speeds_fraction
+        return np.any(np.abs(wheel_speeds) > 0.7)
+
     def can_complete_task(self, task):
         sat_task = SatelliteTask(task, self)
         return sat_task.sat_task_valid
@@ -212,29 +226,51 @@ class Satellite:
         print(sat_stats)
 
     def _task_started(self, task, window_offset):
-        self.fsw.action_drift()
-        if task.is_data_downlink and window_offset == 0:
-            self.fsw.action_downlink()
-            self.action = Actions.DOWNLINK
-        elif task.is_charge:
+        
+        # I think it is always safe to desat
+        if task.is_desat or self.should_desat():
+            self.fsw.action_desat()
+            self.action = Actions.DESAT
+            return
+        
+        # At this point it should be safe to charge
+        if task.is_charge or self.should_charge():
             if not self.in_eclipse():
                 self.fsw.action_charge()
                 self.action = Actions.CHARGE
             else:
-                self.fsw.action_drift()
+                # self.fsw.action_drift()
+                self.fsw.action_desat()
                 self.action = Actions.DRIFT
-        elif task.is_desat:
+            return
+
+        # Now it should be safe to downlink
+        if task.is_data_downlink and window_offset == 0:
+            self.fsw.action_downlink()
+            self.action = Actions.DOWNLINK
+            return
+
+        # Check if we need to downlink 
+        if self.should_downlink():
+            # Drift until we downlink
+            # self.fsw.action_drift()
             self.fsw.action_desat()
-            self.action = Actions.DESAT
-        elif task.is_collection and self.pct_power() > 0.2 and self.pct_storage() < 0.9:
+            self.action = Actions.DRIFT
+            return
+        
+
+        # At this point it should be safe to collect
+        if task.is_collection:
             self.fsw.action_nadir_scan(task.r_LP_P)
             self.action = Actions.COLLECTION
-        elif task.is_noop:
-            self.fsw.action_drift()
-            self.action = Actions.DRIFT
-        else:
-            self.fsw.action_drift()
-            self.action = Actions.DRIFT
+            return
+        
+
+        # If Noop task then drift
+        # self.fsw.action_drift()
+        self.fsw.action_desat()
+        self.action = Actions.DRIFT
+        
 
     def start_action(self, task, window_offset, start_time, end_time):
         """
@@ -320,6 +356,10 @@ class Satellite:
             'sat_task': self.sat_task.observation if self.sat_task is not None else None,
             'action': self.action,
             'reward': self.last_action_reward,
+
+            'should_charge': self.should_charge(),
+            'should_downlink': self.should_downlink(),
+            'should_desat': self.should_desat(),
         }
 
 

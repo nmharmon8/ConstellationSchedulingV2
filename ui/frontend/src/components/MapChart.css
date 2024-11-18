@@ -2,27 +2,41 @@
 .map-container {
   display: flex;
   flex-direction: column;
-  align-items: center;
   width: 100%;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
 }
 
 .map-wrapper {
   position: relative;
-  width: 98%;
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 /* Legend styles */
 .legend {
-  margin-bottom: 20px;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1;
+  margin: 10px;
 }
 
 .legend-items {
   display: flex;
   justify-content: center;
   gap: 20px;
-  background-color: rgba(100, 255, 218, 0.05);
+  background-color: rgba(10, 25, 47, 0.9);
   padding: 10px;
   border-radius: 8px;
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(100, 255, 218, 0.1);
 }
 
 .legend-item {
@@ -52,14 +66,15 @@
 /* Map styles */
 .composable-map {
   width: 100%;
-  height: auto;
+  flex: 1;
+  min-height: 0;
+  position: relative;
 }
 
 .composable-map svg {
   width: 100% !important;
-  height: auto !important;
-  max-height: 100%;
-  aspect-ratio: 2/1;
+  height: 100% !important;
+  aspect-ratio: auto;
 }
 
 .geography {
@@ -140,4 +155,27 @@
   border-radius: 4px !important;
   padding: 8px 12px !important;
   font-size: 0.875rem !important;
+}
+
+/* Add new styles for ObservationState wrapper */
+.observation-state-wrapper {
+  width: 100%;
+  border: none;
+  z-index: 1;
+  flex-shrink: 0;
+}
+
+/* Custom scrollbar styling for webkit browsers */
+.observation-state-wrapper::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.observation-state-wrapper::-webkit-scrollbar-track {
+  background: rgba(10, 25, 47, 0.5);
+}
+
+.observation-state-wrapper::-webkit-scrollbar-thumb {
+  background-color: rgba(100, 255, 218, 0.5);
+  border-radius: 4px;
 }

@@ -20,7 +20,6 @@ const SatelliteModal = ({ open, onClose, satelliteId }) => {
   }
 
   const sat = currentSatState[satelliteId];
-  console.log('Satellite:', sat);
   const {
     lat,
     lon,
@@ -286,6 +285,20 @@ const SatelliteModal = ({ open, onClose, satelliteId }) => {
               <span className="satellite-metric-label">Initial Power</span>
               <span className="satellite-metric-value">
                 {sat_task.init_power.toFixed(2)} W
+              </span>
+            </div>
+
+            {/* Add wheel speeds after the Initial States */}
+            <div className="satellite-metric">
+              <span className="satellite-metric-label">Initial Wheels</span>
+              <span className="satellite-metric-value">
+                [{sat_task.init_wheel_speeds.map(speed => speed.toFixed(4)).join(', ')}]
+              </span>
+            </div>
+            <div className="satellite-metric">
+              <span className="satellite-metric-label">Final Wheels</span>
+              <span className="satellite-metric-value">
+                [{sat_task.final_wheel_speeds.map(speed => speed.toFixed(4)).join(', ')}]
               </span>
             </div>
 
