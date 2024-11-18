@@ -7,6 +7,7 @@ import AgentControlBar from './AgentControlBar';
 import GlobalStats from './GlobalStats';
 import { useAgent } from '../store/AgentStore';
 import TaskGPTModal from './TaskGPTModal';
+import TasksView from './TasksView';
 
 const MainPanel = () => {
   const [currentTab, setCurrentTab] = useState(0);
@@ -160,6 +161,7 @@ const MainPanel = () => {
         >
           <Tab label="Map" />
           <Tab label="Globe" />
+          <Tab label="Tasks" />
           <Tab label="Inspect" />
         </Tabs>
       </Box>
@@ -199,7 +201,8 @@ const MainPanel = () => {
             }}
           >
             {currentTab === 1 && <GlobeComponent />}
-            {currentTab === 2 && <InspectorView />}
+            {currentTab === 2 && <TasksView />}
+            {currentTab === 3 && <InspectorView />}
           </Box>
         )}
       </Box>

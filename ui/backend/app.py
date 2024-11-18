@@ -132,7 +132,8 @@ class App:
             priority=priority,
             task_type=task_type,
             min_elev=min_elev,
-            duration=duration
+            duration=duration,
+            user_id='taskgpt'
         )
 
     def setup_routes(self):

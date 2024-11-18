@@ -122,9 +122,9 @@ class Agent:
             latest_checkpoint = max(checkpoints, key=lambda x: int(x.split("_")[-1]))
             return latest_checkpoint
 
-        checkpoint = find_latest_checkpoint(f"/data/nm/{model_name}/")
-        print(f"Restoring from {checkpoint}")
-        self.algo.restore(checkpoint)
+        # checkpoint = find_latest_checkpoint(f"/data/nm/{model_name}/")
+        # print(f"Restoring from {checkpoint}")
+        # self.algo.restore(checkpoint)
 
         config['env']['time_limit'] = 1000000
         config['env']['min_tasks'] = 500

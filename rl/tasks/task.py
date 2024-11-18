@@ -36,9 +36,10 @@ class TaskType:
 
 class Task:
 
-    def __init__(self, name, task_type):
+    def __init__(self, name, task_type, user_id='Auto'):
         self.name = name
         self.task_type = task_type
+        self.user_id = user_id
         self.sats_collecting = []
 
         # Required for observation
@@ -110,7 +111,7 @@ class Task:
             'is_charge': self.is_charge,
             'is_collection': self.is_collection,
             'is_desat': self.is_desat,
-            # Default values
+            'user_id': self.user_id,
             'priority': 0,
             'simultaneous_collects_required': 0,
             'storage_size': 0,

@@ -45,7 +45,8 @@ model:
     layers: 3
 
   satellite_model:
-    n_embd: 512
+    task_embd: 128
+    n_embd: 1024
     n_head: 4
     bias: False
     dropout: 0.0
@@ -64,7 +65,7 @@ env:
   min_tasks: 500
   max_tasks: 500
 
-  max_sat_coordination: &max_sat_coordination 1
+  max_sat_coordination: &max_sat_coordination 3
   task_min_storage_size: 100
   task_max_storage_size: &task_max_storage_size 1000
   task_min_duration: 1
@@ -83,7 +84,7 @@ env:
     # - 'z'
     - 'window_index_offset'
     - 'priority'
-    # - 'n_required_collects'
+    - 'n_required_collects'
     - 'is_data_downlink'
     - 'is_charge_task'
     - 'is_desat_task'
