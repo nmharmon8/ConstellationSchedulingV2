@@ -23,59 +23,43 @@ class SimpleModel(TorchModelV2, nn.Module):
         self.n_actions = action_space.spaces[0].n
         print(f"Number of actions: {self.n_actions}")
 
+        
         self.n_sats  = obs_space.shape[0]
         self.n_access_windows = obs_space.shape[1]
         self.observation_features = obs_space.shape[2]
-
-        # self.f_dim = obs_space.shape[0] * obs_space.shape[1]
-        # self.n_sats  = obs_space.shape[0]
-        # self.n_access_windows = obs_space.shape[1]
-        # self.observation_features = obs_space.shape[2]
+        self.f_dim = self.n_access_windows * self.observation_features
 
         config =  model_config['custom_model_config']
 
+        # # First do attention over each satellites observations
+        # self.obs_featuer_proj = nn.Linear(self.observation_features, config['feature_model']['n_embd'], bias=config['feature_model']['bias'])
+        # self.obs_feature_encoder = nn.ModuleDict(dict(
+        #     h = nn.ModuleList([Block(config['feature_model']['n_embd'], config['feature_model']['n_head'], config['feature_model']['bias'], causal=False, time_emd=False, dropout=config['feature_model']['dropout']) for _ in range(config['feature_model']['layers'])]),
+        #     ln_f = LayerNorm(config['feature_model']['n_embd'], bias=config['feature_model']['bias'])
+        # ))
+
+
+        # # Then do attention over the concatenated observations, e.g satellite level features
+        # self.obs_sat_proj = nn.Linear(config['feature_model']['n_embd'] * self.n_access_windows, config['satellite_model']['n_embd'], bias=config['satellite_model']['bias'])
+        # self.obs_sat_encoder = nn.ModuleDict(dict(
+        #     h = nn.ModuleList([Block(config['satellite_model']['n_embd'], config['satellite_model']['n_head'], config['satellite_model']['bias'], causal=False, time_emd=False, dropout=config['satellite_model']['dropout']) for _ in range(config['satellite_model']['layers'])]),
+        #     ln_f = LayerNorm(config['satellite_model']['n_embd'], bias=config['satellite_model']['bias'])
+        # ))
 
         self.task_encoder = nn.Sequential(
-            nn.Linear(self.observation_features, config['satellite_model']['task_embd']),
+            nn.Linear(self.observation_features, 128),
             nn.ReLU(),
-            nn.Linear(config['satellite_model']['task_embd'], config['satellite_model']['task_embd']),
         )
 
         self.observation_encoder = nn.Sequential(
-            nn.Linear(config['satellite_model']['task_embd'] * self.n_access_windows, config['satellite_model']['n_embd']),
+            nn.Linear(128 * self.n_access_windows, 512),
             nn.ReLU(),
-            nn.Linear(config['satellite_model']['n_embd'], config['satellite_model']['n_embd']),
         )
 
-        self.satellite_encoder = nn.ModuleDict(dict(
-            h = nn.ModuleList([Block(
-                config['satellite_model']['n_embd'], 
-                config['satellite_model']['n_head'], 
-                config['satellite_model']['bias'], 
-                causal=False, 
-                time_emd=False, 
-                dropout=config['satellite_model']['dropout']
-            ) for _ in range(config['satellite_model']['layers'])]),
-            ln_f = LayerNorm(config['satellite_model']['n_embd'], bias=config['satellite_model']['bias'])
-        ))
+        self.dropout = nn.Dropout(0.5)
 
-        self.action_branch = nn.Linear(config['satellite_model']['n_embd'], self.n_actions, bias=config['satellite_model']['bias'])
-        
-
-        self.value_branch_proj = nn.Linear(config['satellite_model']['n_embd'], 128, bias=config['satellite_model']['bias'])
-        self.value_encoder = nn.ModuleDict(dict(
-            h = nn.ModuleList([Block(
-                128, 
-                2, 
-                False, 
-                causal=False, 
-                time_emd=True, 
-                dropout=config['satellite_model']['dropout']
-            ) for _ in range(2)]),
-            ln_f = LayerNorm(128, bias=False)
-        ))
-
-        self.value_branch = nn.Linear(128, 1)
+        self.action_branch = nn.Linear(512, self.n_actions, bias=True)
+        self.value_branch = nn.Linear(512 * self.n_sats, 1, bias=True)
     
 
         self._features = None
@@ -85,29 +69,21 @@ class SimpleModel(TorchModelV2, nn.Module):
         b, n_sats, n_access_windows, n_features = obs.shape
 
         tasks = self.task_encoder(obs)
-        obs = self.observation_encoder(tasks.reshape(b, n_sats, -1)) # shape: torch.Size([32, 10, 1024])
+        # tasks = self.dropout(tasks)
+        observations = self.observation_encoder(tasks.reshape(b, n_sats, -1))
+        # observations = self.dropout(observations)
 
-        
-        for i, block in enumerate(self.satellite_encoder.h):
-            obs = block(obs)
-        obs = self.satellite_encoder.ln_f(obs) # shape: torch.Size([32, 10, 1024])
-
-        
-        self._features = obs.clone()
-        actions = self.action_branch(obs).reshape(b, -1)
+        self._features = observations.clone()
+        actions = self.action_branch(observations)
+        print(f"Actions shape: {actions.shape}")
+        # actions = actions.reshape(b, self.n_sats, self.n_actions)
+        actions = actions.reshape(b, -1)
         return actions, []
     
     
     def value_function(self):
         assert self._features is not None, "Must call forward() first"
-        value_proj = self.value_branch_proj(self._features)
-        print(f"Value proj shape: {value_proj.shape}")
-        for i, block in enumerate(self.value_encoder.h):
-            value_proj = block(value_proj)
-        print(f"Value proj shape after encoder: {value_proj.shape}")
-        value_proj = self.value_encoder.ln_f(value_proj)
-        value = self.value_branch(value_proj[:, 0, :])
-        print(f"Value shape: {value.shape}")
+        value = self.value_branch(self._features.view(self._features.size(0), -1))
         return value.squeeze(1)
 
 

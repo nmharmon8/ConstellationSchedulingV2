@@ -101,30 +101,6 @@
 }
 
 /* Failed task styles */
-@keyframes pulse {
-  0% {
-    stroke-width: 1;
-    stroke-opacity: 1;
-    r: 4;
-  }
-  70% {
-    stroke-width: 2;
-    stroke-opacity: 0.5;
-    r: 8;
-  }
-  100% {
-    stroke-width: 1;
-    stroke-opacity: 0;
-    r: 12;
-  }
-}
-
-.failed-task-pulse {
-  fill: none;
-  stroke: #ff0000;
-  animation: pulse 1.5s ease-out infinite;
-}
-
 .failed-task-marker { fill: #ff0000; }
 
 .failed-task-x {
@@ -178,4 +154,40 @@
 .observation-state-wrapper::-webkit-scrollbar-thumb {
   background-color: rgba(100, 255, 218, 0.5);
   border-radius: 4px;
+}
+
+/* Collection task thinking animation */
+@keyframes thinking {
+  0% {
+    r: 3;
+    opacity: 0.2;
+  }
+  50% {
+    r: 8;
+    opacity: 0.8;
+  }
+  100% {
+    r: 3;
+    opacity: 0.2;
+  }
+}
+
+.collection-task-indicator {
+  fill: none;
+  stroke-width: 2;
+  animation: thinking 1s ease-in-out infinite;
+}
+
+.planning-line {
+  pointer-events: none;
+}
+
+.planning-line-considered {
+  stroke-width: 1.5;
+}
+
+.planning-line-active {
+  opacity: 1.0;
+  stroke-width: 2;
+  stroke-dasharray: 4, 4;
 }

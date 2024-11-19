@@ -1,9 +1,29 @@
 import React, { useState, useEffect } from 'react';
-import './TaskList.css';
-import { useAgent } from '../store/AgentStore';
+import { useAgent } from '../../../store/AgentStore';
 import { Typography, Select, MenuItem, FormControl, InputLabel, IconButton } from '@mui/material';
-import TaskModal from './TaskModal';
+import TaskModal from '../TaskModal';
 import { ArrowUpward, ArrowDownward } from '@mui/icons-material';
+import { styled } from '@mui/material/styles';
+
+// Custom styled Select component to match dark theme
+const DarkSelect = styled(Select)(({ theme }) => ({
+  '& .MuiOutlinedInput-notchedOutline': {
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  '&:hover .MuiOutlinedInput-notchedOutline': {
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+    borderColor: '#00e6e6',
+  },
+  '& .MuiSelect-icon': {
+    color: 'rgba(255, 255, 255, 0.5)',
+  },
+  // Style for the menu items when opened
+  '& .MuiSelect-select': {
+    color: 'white',
+  },
+}));
 
 function TaskList() {
   const { tasks = [], loading, isAutoRunning, pauseAutoStep, startAutoStep } = useAgent();
@@ -68,7 +88,7 @@ function TaskList() {
   }
 
   if (loading) {
-    return <div className="task-list">Loading tasks...</div>;
+    return <div className="h-screen w-full bg-space-dark text-white p-4">Loading tasks...</div>;
   }
 
   const formatNumber = (num) => {
@@ -103,52 +123,102 @@ function TaskList() {
   ];
 
   return (
-    <div className="task-list">
-      <div className="task-list-header">
-        <h2>Tasks</h2>
-        <div className="task-stats">
+    <div className="relative w-full h-screen bg-space-dark text-white p-4 shadow-lg flex flex-col overflow-hidden font-sans">
+      {/* Header - Updated styling */}
+      <div className="flex-none mb-5 border-b border-gray-600 pb-3">
+        <h2 className="text-center text-space-cyan m-0">Tasks</h2>
+        <div className="flex flex-wrap justify-center gap-2 mt-2">
           {Object.entries(taskTypeStats).map(([type, count]) => (
-            <span key={type} className="task-stat">
+            <span 
+              key={type} 
+              className="text-sm px-3 py-1 bg-space-darker rounded-full border border-gray-600"
+            >
               {type}: {count}
             </span>
           ))}
         </div>
       </div>
 
-      {/* Sorting Controls */}
-      <div className="sorting-controls" style={{ display: 'flex', alignItems: 'center', marginBottom: '16px' }}>
-        <FormControl variant="outlined" size="small" style={{ minWidth: 200, marginRight: '16px' }}>
-          <InputLabel id="sort-field-label">Sort By</InputLabel>
-          <Select
-            labelId="sort-field-label"
-            value={sortField}
-            onChange={handleSortFieldChange}
-            label="Sort By"
+      {/* Updated Sorting Controls with inline arrow */}
+      <div className="flex flex-col gap-2 mb-4">
+        <div className="flex items-center gap-2">
+          <FormControl 
+            variant="outlined" 
+            size="small" 
+            className="w-full"
           >
-            <MenuItem value="">
-              <em>None</em>
-            </MenuItem>
-            {sortableFields.map((field) => (
-              <MenuItem key={field.value} value={field.value}>
-                {field.label}
+            <InputLabel 
+              id="sort-field-label" 
+              className="text-gray-400"
+              sx={{ color: 'rgba(255, 255, 255, 0.7)' }}
+            >
+              Sort By
+            </InputLabel>
+            <DarkSelect
+              labelId="sort-field-label"
+              value={sortField}
+              onChange={handleSortFieldChange}
+              label="Sort By"
+              className="bg-space-darker"
+              MenuProps={{
+                PaperProps: {
+                  sx: {
+                    bgcolor: '#1e1e2f',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    '& .MuiMenuItem-root': {
+                      color: 'white',
+                      '&:hover': {
+                        bgcolor: 'rgba(0, 230, 230, 0.1)',
+                      },
+                      '&.Mui-selected': {
+                        bgcolor: 'rgba(0, 230, 230, 0.2)',
+                        '&:hover': {
+                          bgcolor: 'rgba(0, 230, 230, 0.3)',
+                        }
+                      }
+                    }
+                  }
+                }
+              }}
+            >
+              <MenuItem value="" className="text-white">
+                <em>None</em>
               </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-        {sortField && (
-          <IconButton onClick={toggleSortOrder} aria-label="toggle sort order">
-            {sortOrder === 'asc' ? <ArrowUpward /> : <ArrowDownward />}
-          </IconButton>
-        )}
+              {sortableFields.map((field) => (
+                <MenuItem key={field.value} value={field.value}>
+                  {field.label}
+                </MenuItem>
+              ))}
+            </DarkSelect>
+          </FormControl>
+          
+          {sortField && (
+            <IconButton 
+              onClick={toggleSortOrder} 
+              aria-label="toggle sort order"
+              sx={{
+                color: 'rgba(255, 255, 255, 0.7)',
+                '&:hover': {
+                  color: '#00e6e6',
+                  backgroundColor: 'rgba(0, 230, 230, 0.1)',
+                }
+              }}
+              size="small"
+            >
+              {sortOrder === 'asc' ? <ArrowUpward /> : <ArrowDownward />}
+            </IconButton>
+          )}
+        </div>
       </div>
 
-      <div className="task-list-content">
+      {/* Task List Content */}
+      <div className="flex-1 overflow-y-auto pr-1 w-full scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-space-dark">
         {!sortedTasks?.length ? (
-          <Typography variant="body1" sx={{ textAlign: 'center', color: '#cccccc' }}>
+          <Typography variant="body1" className="text-center text-gray-400">
             No tasks available.
           </Typography>
         ) : (
-          <div className="task-items">
+          <div className="space-y-3">
             {sortedTasks.map((task, index) => {
               if (!task || !task.id) {
                 console.warn(`Task at index ${index} is missing an 'id' property.`);
@@ -157,7 +227,8 @@ function TaskList() {
               return (
                 <div 
                   key={task.id}
-                  className={`task-item ${task.task_fail_count > 0 ? 'failed' : ''}`}
+                  className={`bg-space-darker border border-gray-600 rounded-lg p-4 mr-1 cursor-pointer hover:bg-opacity-90 transition-colors
+                    ${task.task_fail_count > 0 ? 'border-red-500/50' : ''}`}
                   onClick={() => handleTaskClick(task)}
                   onKeyPress={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
@@ -167,37 +238,45 @@ function TaskList() {
                   role="button"
                   tabIndex={0}
                 >
-                  <div className="task-header">
-                    <span className="task-type">{task.task_type_str}</span>
-                    <span className="task-priority">
+                  {/* Task Header */}
+                  <div className="flex justify-between items-center mb-3">
+                    <span className="text-space-cyan font-medium">{task.task_type_str}</span>
+                    <span className="text-sm px-2 py-1 rounded-full bg-space-dark">
                       Priority: {formatNumber(task.priority)}
                     </span>
                   </div>
-                  <div className="task-details">
-                    <div className="task-metric">
+
+                  {/* Task Details */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm text-gray-300">
                       <span>Duration</span>
                       <span>{formatNumber(task.task_duration)}s</span>
                     </div>
+
                     {task.storage_size && (
-                      <div className="task-metric">
+                      <div className="flex justify-between text-sm text-gray-300">
                         <span>Storage Required</span>
                         <span>{formatStorageSize(task.storage_size)} MB</span>
                       </div>
                     )}
+
                     {task.simultaneous_collects_required > 1 && (
-                      <div className="task-metric">
+                      <div className="flex justify-between text-sm text-gray-300">
                         <span>Required Satellites</span>
                         <span>{task.simultaneous_collects_required}</span>
                       </div>
                     )}
+
                     {task.task_fail_count > 0 && (
-                      <div className="task-metric fail-count">
+                      <div className="flex justify-between text-sm text-red-400">
                         <span>Failed Attempts</span>
                         <span>{task.task_fail_count}</span>
                       </div>
                     )}
                   </div>
-                  <div className="task-location">
+
+                  {/* Task Location */}
+                  <div className="mt-3 pt-3 border-t border-gray-600 grid grid-cols-3 gap-2 text-sm text-gray-300">
                     <Typography variant="body2">
                       Lat: {formatNumber(task.latitude)}°
                     </Typography>
@@ -214,6 +293,8 @@ function TaskList() {
           </div>
         )}
       </div>
+
+      {/* Modal remains unchanged */}
       {selectedTask && (
         <TaskModal 
           task={selectedTask}

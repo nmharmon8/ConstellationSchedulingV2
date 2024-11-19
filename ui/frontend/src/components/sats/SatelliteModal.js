@@ -9,7 +9,7 @@ import {
   Typography,
   LinearProgress
 } from '@mui/material';
-import { useAgent } from '../store/AgentStore';
+import { useAgent } from '../../store/AgentStore';
 import './SatelliteModal.css';
 
 const SatelliteModal = ({ open, onClose, satelliteId }) => {

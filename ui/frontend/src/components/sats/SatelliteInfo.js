@@ -1,5 +1,5 @@
 import React from 'react';
-import { useAgent } from '../store/AgentStore';
+import { useAgent } from '../../store/AgentStore';
 
 const SatelliteInfo = () => {
   const { currentSatState } = useAgent();

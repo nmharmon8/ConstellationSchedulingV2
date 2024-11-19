@@ -8,19 +8,19 @@ import {
 } from "react-simple-maps";
 import { Tooltip } from "react-tooltip";
 import "react-tooltip/dist/react-tooltip.css";
-import worldCountries from "../data/world-countries.json";
+import worldCountries from "../../data/world-countries.json";
 import './MapChart.css';
-import { useAgent } from '../store/AgentStore';
+import { useAgent } from '../../store/AgentStore';
 import CircularProgress from '@mui/material/CircularProgress';
-import SatelliteModal from './SatelliteModal';
+import SatelliteModal from '../sats/SatelliteModal';
 import DownlinkStation from './DownlinkStation';
 import SatelliteMarker from './SatelliteMarker';
-import TaskModal from './TaskModal';
-import CreateTaskModal from './CreateTaskModal';
+import TaskModal from '../tasks/TaskModal';
+import CreateTaskModal from '../CreateTaskModal';
 import { geoEqualEarth } from "d3-geo";
 import ObservationState from './ObservationState';
 
-const STEP_DURATION = 4000; // 4 seconds
+const STEP_DURATION = 5000; // 5 seconds total animation time
 
 const MapChart = () => {
   const {
@@ -29,6 +29,7 @@ const MapChart = () => {
     isResetting,
     interpolatedPositions,
     currentTasksBeingExecuted,
+    currentActionsAndObs,
   } = useAgent();
 
   // Filter out CHARGE, DESAT, and NOOP tasks since they don't have valid coordinates
@@ -41,6 +42,8 @@ const MapChart = () => {
   const [selectedSatellite, setSelectedSatellite] = useState(null);
   const [selectedTask, setSelectedTask] = useState(null);
   const [createTaskCoordinates, setCreateTaskCoordinates] = useState(null);
+  const [visibleLines, setVisibleLines] = useState([]);
+  const [lineOpacities, setLineOpacities] = useState({});
 
   const [mapScale, setMapScale] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -115,6 +118,71 @@ const MapChart = () => {
       }
     };
   }, [interpolatedPositions]);
+
+  useEffect(() => {
+    if (currentActionsAndObs && currentPositions) {
+      const newPlanningLines = [];
+      const usedKeys = new Set();
+      const newOpacities = { ...lineOpacities };
+      
+      Object.entries(currentActionsAndObs.sat_to_tasks || {}).forEach(([satId, tasks]) => {
+        const satPosition = currentPositions[satId];
+        if (!satPosition || !tasks || tasks.length === 0) return;
+
+        // Add active task line if it exists
+        const activeTaskIndex = currentActionsAndObs.sat_to_act[satId];
+        const activeTask = tasks[activeTaskIndex];
+        if (activeTask && (activeTask.is_collection || activeTask.is_data_downlink)) {
+          const activeLineKey = `${satId}-active-${activeTask.id}-${activeTaskIndex}`;
+          if (!usedKeys.has(activeLineKey)) {
+            usedKeys.add(activeLineKey);
+            newPlanningLines.push({
+              id: activeLineKey,
+              from: [satPosition.lon, satPosition.lat],
+              to: [activeTask.longitude, activeTask.latitude],
+              isActive: true
+            });
+          }
+        }
+
+        // Add planning lines with unique random opacity for each line
+        tasks
+          .filter((task, index) => 
+            index !== activeTaskIndex && 
+            task.is_collection
+          )
+          .forEach((task, index) => {
+            const planningLineKey = `${satId}-planning-${task.id}-${index}`;
+            if (!usedKeys.has(planningLineKey)) {
+              usedKeys.add(planningLineKey);
+              // Only update opacity 10% of the time
+              const shouldUpdateOpacity = Math.random() < 0.05;
+              
+              if (shouldUpdateOpacity) {
+                // When updating, randomly choose between 0 or 1
+                newOpacities[planningLineKey] = Math.round(Math.random()) / 5.0;
+              } else if (!newOpacities[planningLineKey]) {
+                // If no previous opacity exists, initialize it
+                newOpacities[planningLineKey] = 0.0;
+              }
+
+              newPlanningLines.push({
+                id: planningLineKey,
+                from: [satPosition.lon, satPosition.lat],
+                to: [task.longitude, task.latitude],
+                isActive: false,
+                opacity: newOpacities[planningLineKey]
+              });
+            }
+          });
+      });
+
+      setLineOpacities(newOpacities);
+      setVisibleLines(newPlanningLines);
+    } else {
+      setVisibleLines([]);
+    }
+  }, [currentActionsAndObs, currentPositions]);
 
   const handleSatelliteClick = (satId) => {
     // If clicking the same satellite, do nothing
@@ -305,15 +373,12 @@ const MapChart = () => {
               >
                 <g>
                   {task.task_fail_count > 0 ? (
-                    // Failed task markers remain the same
                     <>
-                      <circle r={4} className="failed-task-pulse" />
                       <circle r={2} className="failed-task-marker" />
                       <line x1="-1.5" y1="-1.5" x2="1.5" y2="1.5" className="failed-task-x" />
                       <line x1="1.5" y1="-1.5" x2="-1.5" y2="1.5" className="failed-task-x" />
                     </>
                   ) : (
-                    // Regular task marker
                     <circle 
                       r={2}
                       className="marker-circle"
@@ -325,25 +390,6 @@ const MapChart = () => {
             )
           ))}
 
-          {/* Render Lines from Satellites to Current Tasks Being Executed */}
-          {Object.entries(currentTasksBeingExecuted).map(([satId, task]) => {
-            if (!task.is_access_task) return null;
-
-            const satPosition = currentPositions[satId];
-            if (!satPosition) return null;
-
-            return (
-              <Line
-                key={`line-${satId}-${task.id}`}
-                from={[satPosition.lon, satPosition.lat]}
-                to={[task.longitude, task.latitude]}
-                stroke="#FFD700"
-                strokeWidth={2}
-                strokeDasharray="4,4"
-              />
-            );
-          })}
-
           {/* Satellite Markers */}
           {Object.entries(currentPositions).map(([satId, position]) => (
             <SatelliteMarker
@@ -352,6 +398,21 @@ const MapChart = () => {
               position={position}
               isSelected={selectedSatellite === satId}
               onClick={handleSatelliteClick}
+            />
+          ))}
+
+          {/* Planning lines */}
+          {visibleLines.map(line => (
+            <Line
+              key={line.id}
+              from={line.from}
+              to={line.to}
+              stroke={line.isActive ? "#4CAF50" : "#2196F3"}
+              strokeWidth={line.isActive ? 2 : 0.5}
+              className={`planning-line ${
+                line.isActive ? 'planning-line-active' : 'planning-line-considered'
+              }`}
+              style={!line.isActive ? { opacity: line.opacity } : undefined}
             />
           ))}
         </ComposableMap>

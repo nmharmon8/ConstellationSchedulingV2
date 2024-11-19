@@ -1,0 +1,18 @@
+.task-marker {
+  stroke: #032706;
+  stroke-width: 1;
+  filter: drop-shadow(0 0 4px rgba(100, 255, 218, 0.5));
+}
+
+/* Failed Task Styles - simplified */
+.failed-task-marker { 
+  fill: #ff0000;
+  r: 3;  /* Make the marker slightly larger */
+}
+
+.failed-task-x { 
+  stroke: white; 
+  stroke-width: 1; 
+}
+
+/* Remove the pulse keyframes and class since we won't use them anymore */

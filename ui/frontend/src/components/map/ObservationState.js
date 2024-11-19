@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { useAgent } from '../store/AgentStore';
-import '../styles/ObservationState.css';
-import TaskModal from './TaskModal';
+import { useAgent } from '../../store/AgentStore';
+import './ObservationState.css';
+import TaskModal from '../tasks/TaskModal';
 
 const ObservationState = () => {
   const { 

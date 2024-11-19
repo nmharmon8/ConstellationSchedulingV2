@@ -1,13 +1,13 @@
 import React, { useState, useRef } from 'react';
 import GlobeComponent from './GlobeComponent';
-import MapChart from './MapChart';
+import MapChart from './map/MapChart';
 import InspectorView from './InspectorView';
 import { Box, Tabs, Tab, IconButton, TextField, LinearProgress } from '@mui/material';
 import AgentControlBar from './AgentControlBar';
 import GlobalStats from './GlobalStats';
 import { useAgent } from '../store/AgentStore';
-import TaskGPTModal from './TaskGPTModal';
-import TasksView from './TasksView';
+import TaskGPTModal from './tasks/TaskGPTModal';
+import TasksView from './tasks/task_view/TasksView';
 
 const MainPanel = () => {
   const [currentTab, setCurrentTab] = useState(0);

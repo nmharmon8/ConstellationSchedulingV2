@@ -36,7 +36,7 @@ class TaskType:
 
 class Task:
 
-    def __init__(self, name, task_type, user_id='Auto'):
+    def __init__(self, name, task_type, user_id='system'):
         self.name = name
         self.task_type = task_type
         self.user_id = user_id
@@ -129,9 +129,9 @@ class Task:
 
 class PositionTask(Task):
 
-    def __init__(self, name, task_type, r_LP_P, task_duration, max_step_duration, min_elev):
+    def __init__(self, name, task_type, r_LP_P, task_duration, max_step_duration, min_elev, user_id="system"):
 
-        Task.__init__(self, name, task_type)
+        Task.__init__(self, name, task_type, user_id)
 
         self.r_LP_P = r_LP_P
 
@@ -212,8 +212,8 @@ class PositionTask(Task):
 
 class CollectTask(PositionTask):
 
-    def __init__(self, name, r_LP_P, priority, simultaneous_collects_required, task_duration, task_type, storage_size, max_step_duration, min_elev):
-        PositionTask.__init__(self, name, task_type, r_LP_P, task_duration, max_step_duration, min_elev)
+    def __init__(self, name, r_LP_P, priority, simultaneous_collects_required, task_duration, task_type, storage_size, max_step_duration, min_elev, user_id="system"):
+        PositionTask.__init__(self, name, task_type, r_LP_P, task_duration, max_step_duration, min_elev, user_id)
 
         self.priority = priority
         self.simultaneous_collects_required = simultaneous_collects_required
@@ -242,8 +242,8 @@ class CollectTask(PositionTask):
         
         # Priority
         priority = np.random.rand()
-        priority *= simultaneous_collects_required + 1
-        priority = priority / (config['max_sat_coordination'] + 1)
+        priority += simultaneous_collects_required - 1
+        priority = priority / (config['max_sat_coordination'])
 
         #Storage Size
         task_min_storage_size = config['task_min_storage_size']
@@ -258,6 +258,8 @@ class CollectTask(PositionTask):
         #Tasking Type
         task_type = np.random.choice([TaskType.RF, TaskType.IMAGING])
 
+        fake_user_ids = ["robert.rhoads", "shivani.desai", "rebecca.kopacz"]
+        user_id = np.random.choice(fake_user_ids)
         return CollectTask(
             name=f"tgt-{uuid.uuid4()}",
             r_LP_P=x,
@@ -267,7 +269,8 @@ class CollectTask(PositionTask):
             task_type=task_type,
             storage_size=storage_size,
             max_step_duration=config['max_step_duration'],
-            min_elev=config['task_min_elev']
+            min_elev=config['task_min_elev'],
+            user_id=user_id
         )
     
     def _task_complete(self):
@@ -319,8 +322,8 @@ class CollectTask(PositionTask):
     
     
 class DownlinkTask(PositionTask):
-    def __init__(self, name, r_LP_P, priority, task_duration, max_step_duration, min_elev):
-        PositionTask.__init__(self, name, TaskType.DATA_DOWNLINK, r_LP_P, task_duration, max_step_duration, min_elev)
+    def __init__(self, name, r_LP_P, priority, task_duration, max_step_duration, min_elev, user_id="system"):
+        PositionTask.__init__(self, name, TaskType.DATA_DOWNLINK, r_LP_P, task_duration, max_step_duration, min_elev, user_id)
         self.priority = priority
         self.sats_collecting = []
 
@@ -342,7 +345,8 @@ class DownlinkTask(PositionTask):
                 priority=config['downlink_task_priority'],
                 task_duration=task_duration,
                 max_step_duration=config['max_step_duration'],
-                min_elev=0.17453292519943295 # 10 degrees
+                min_elev=0.17453292519943295, # 10 degrees
+                user_id="system"
             )
             
             ground_station_tasks.append(task)

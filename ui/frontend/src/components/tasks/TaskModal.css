@@ -64,6 +64,27 @@
   font-weight: 600;
   font-family: 'Roboto Mono', monospace;
   text-align: right;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.task-metric-value.boolean-true {
+  color: #4CAF50;
+}
+
+.task-metric-value.boolean-false {
+  color: #FF5722;
+}
+
+.task-metric-value.number {
+  font-feature-settings: "tnum";
+  letter-spacing: 0.5px;
+}
+
+.task-metric:hover .task-metric-label {
+  color: #00e6e6;
+  transition: color 0.2s ease;
 }
 
 /* Side panel specific styles */

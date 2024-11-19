@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogTitle, IconButton } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
-import { useAgent } from '../store/AgentStore';
+import { useAgent } from '../../store/AgentStore';
 import './TaskGPTModal.css';
 
 const TaskGPTModal = () => {

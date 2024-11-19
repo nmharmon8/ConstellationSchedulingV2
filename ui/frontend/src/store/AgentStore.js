@@ -31,7 +31,7 @@ export const AgentProvider = ({ children }) => {
 
   useEffect(() => {
     // Configure Socket.IO with reconnection options
-    socketRef.current = io('http://localhost:5000', {
+    socketRef.current = io('http://localhost:4000', {
       reconnection: true,
       reconnectionAttempts: Infinity,
       reconnectionDelay: 1000,
@@ -82,9 +82,12 @@ export const AgentProvider = ({ children }) => {
 
     // Listen for step updates
     socketRef.current.on('step_update', (data) => {
-
       if (isResetting) return;
 
+      // Clear previous state first
+      setCurrentActionsAndObs(null);  // This will trigger planning lines cleanup
+      
+      // Then set the new state
       setInterpolatedPositions(data.interpolated_sat_positions);
       setCurrentSatState(data.current_sat_state);
       setTasks(data.tasks);
@@ -96,7 +99,6 @@ export const AgentProvider = ({ children }) => {
         newCurrentTasksBeingExecuted[satId] = data.current_acts_obs.sat_to_tasks[satId][taskIndex];
       });
       setCurrentTasksBeingExecuted(newCurrentTasksBeingExecuted);
-      
     });
 
     // Listen for agent reset
@@ -195,7 +197,7 @@ export const AgentProvider = ({ children }) => {
   const startAutoStep = async () => {
     if (isAutoRunning) return;
     try {
-      const response = await fetch('/api/run/3000', { // 3000ms interval
+      const response = await fetch('/api/run/5000', { // 3000ms interval
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

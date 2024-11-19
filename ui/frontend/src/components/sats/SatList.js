@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import './SatList.css';
-import { useAgent } from '../store/AgentStore';
+import { useAgent } from '../../store/AgentStore';
 import { Box, LinearProgress, Typography } from '@mui/material';
 import SatelliteModal from './SatelliteModal';
 
@@ -20,21 +19,22 @@ function SatList() {
   };
 
   if (loading) {
-    return <div className="sat-list">Loading satellites...</div>;
+    return <div className="h-screen w-full bg-space-dark text-white p-4">Loading satellites...</div>;
   }
 
   const satelliteIds = Object.keys(currentSatState || {});
   const totalSatellites = satelliteIds.length;
 
   return (
-    <div className="sat-list">
-      <div className="sat-list-header">
-        <h2>Satellites</h2>
-        <div className="sat-count">
+    <div className="relative w-full h-screen bg-space-dark text-white p-4 shadow-lg flex flex-col overflow-hidden font-sans">
+      <div className="flex-none mb-5 border-b border-gray-600 pb-3">
+        <h2 className="text-center text-space-cyan m-0">Satellites</h2>
+        <div className="text-center">
           Total: {totalSatellites}
         </div>
       </div>
-      <div className="sat-list-content">
+
+      <div className="flex-1 overflow-y-auto pr-1 w-full scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-space-dark">
         {satelliteIds.map((satId) => {
           const sat = currentSatState[satId];
 
@@ -42,20 +42,18 @@ function SatList() {
             return (
               <div 
                 key={satId} 
-                className="sat-item"
+                className="bg-space-darker border border-gray-600 rounded-lg p-4 mb-3 mr-1 cursor-pointer hover:bg-opacity-90 transition-colors"
                 onClick={() => handleSatelliteClick(satId)}
-                style={{ cursor: 'pointer' }}
               >
-                <div className="sat-header">
-                  <h3>{satId}</h3>
-                  <span className={`eclipse-status`}>
+                <div className="flex justify-between items-center mb-3">
+                  <h3 className="text-space-cyan m-0">{satId}</h3>
+                  <span className={`flex items-center text-sm px-2 py-1 rounded-full bg-space-dark ${eclipseStatus ? 'bg-opacity-50' : ''}`}>
                     Info Unavailable
                   </span>
                 </div>
               </div>
             );
           }
-
           const { observation } = sat;
           const { sat_task } = observation;
           const eclipseStatus = observation.in_eclipse;
@@ -69,53 +67,64 @@ function SatList() {
           return (
             <div 
               key={satId} 
-              className="sat-item"
+              className="bg-space-darker border border-gray-600 rounded-lg p-4 mb-3 mr-1 cursor-pointer hover:bg-opacity-90 transition-colors"
               onClick={() => handleSatelliteClick(satId)}
-              style={{ cursor: 'pointer' }}
             >
-              <div className="sat-header">
-                <h3>{shortSatName}</h3>
-                <div className="sat-status-container">
-                  <span className={`eclipse-status ${eclipseStatus ? 'in-eclipse' : ''}`}>
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="text-space-cyan m-0">{shortSatName}</h3>
+                <div className="flex gap-2">
+                  <span className={`flex items-center text-sm px-2 py-1 rounded-full bg-space-dark ${eclipseStatus ? 'bg-opacity-50' : ''}`}>
                     {eclipseStatus ? '🌑 Eclipse' : '☀️ Sunlight'}
                   </span>
-                  <span className={`sat-status ${isAlive ? 'status-alive' : 'status-dead'}`}>
+                  <span className={`flex items-center text-sm px-2 py-1 rounded-full bg-space-dark ${isAlive ? 'text-green-500' : 'text-red-500'}`}>
                     {isAlive ? '🟢 Active' : '🔴 Fault'}
                   </span>
                 </div>
               </div>
               
-              <div className="sat-metrics">
-                <div className="metric task-info">
+              <div className="flex flex-col gap-4">
+                <div className="bg-gradient-to-r from-space-cyan/10 to-space-cyan/5 border border-space-cyan/20 rounded p-3 text-space-cyan/90 font-mono text-sm relative">
                   {taskRequested} → {actualAction}
                 </div>
 
-                <div className="metric">
-                  <div className="metric-header">
+                {/* Storage Metric */}
+                <div className="flex flex-col gap-1">
+                  <div className="flex justify-between text-sm text-gray-300">
                     <span>Storage</span>
                     <span>{(observation.storage_percentage * 100).toFixed(1)}%</span>
                   </div>
                   <LinearProgress 
                     variant="determinate" 
                     value={observation.storage_percentage * 100}
-                    className="storage-progress"
+                    className="h-1.5 bg-space-cyan/20"
+                    sx={{
+                      '& .MuiLinearProgress-bar': {
+                        backgroundColor: '#00e6e6'
+                      }
+                    }}
                   />
-                  <Typography variant="caption" className="metric-detail">
+                  <Typography variant="caption" className="text-gray-500 text-xs">
                     {(observation.storage_level / 1e9).toFixed(2)}GB / {(observation.storage_capacity / 1e9).toFixed(2)}GB
                   </Typography>
                 </div>
 
-                <div className="metric">
-                  <div className="metric-header">
+                {/* Power Metric */}
+                <div className="flex flex-col gap-1">
+                  <div className="flex justify-between text-sm text-gray-300">
                     <span>Power</span>
                     <span>{(observation.power_percentage * 100).toFixed(1)}%</span>
                   </div>
                   <LinearProgress 
                     variant="determinate" 
                     value={observation.power_percentage * 100}
-                    className="power-progress"
+                    className="h-1.5 bg-yellow-500/20"
+                    sx={{
+                      '& .MuiLinearProgress-bar': {
+                        backgroundColor: '#ffc400'
+                      }
+                    }}
                   />
-                  <Typography variant="caption" className="metric-detail">
+                  <Typography variant="caption" className="text-gray-500 text-xs">
                     {(observation.power_level / 1e3).toFixed(2)}kW / {(observation.power_capacity / 1e3).toFixed(2)}kW
                   </Typography>
                 </div>
@@ -135,3 +144,4 @@ function SatList() {
 }
 
 export default SatList;
+

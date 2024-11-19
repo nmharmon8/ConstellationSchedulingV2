@@ -19,7 +19,8 @@ const searchableProps = [
   { key: 'latitude', display: 'Latitude' },
   { key: 'longitude', display: 'Longitude' },
   { key: 'min_elev', display: 'Min Elevation' },
-  { key: 'user_id', display: 'User ID' }
+  { key: 'user_id', display: 'User ID' },
+  { key: 'simultaneous_collects_required', display: 'Simultaneous Collects Required' }
 ];
 
 const TaskSearchBar = ({ searchQuery, setSearchQuery }) => {
@@ -27,39 +28,42 @@ const TaskSearchBar = ({ searchQuery, setSearchQuery }) => {
   const [anchorEl, setAnchorEl] = useState(null);
   const [cursorPosition, setCursorPosition] = useState(0);
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const inputRef = React.useRef(null);
 
   // Debounce the search query update
   const debouncedSetSearchQuery = useCallback(
     debounce((value) => {
       setSearchQuery(value);
     }, 300),
-    []
+    [setSearchQuery]
   );
 
+  // Determine if property menu should be shown
   const showPropertyMenu = useMemo(() => {
-    const lastAtSymbol = localSearchQuery.lastIndexOf('@', cursorPosition);
+    const lastAtSymbol = localSearchQuery.lastIndexOf('@', cursorPosition - 1);
     if (lastAtSymbol === -1) return false;
-    
+
     const nextSpace = localSearchQuery.indexOf(' ', lastAtSymbol);
     if (nextSpace !== -1 && nextSpace < cursorPosition) return false;
-    
+
     const colonAfterAt = localSearchQuery.indexOf(':', lastAtSymbol);
     if (colonAfterAt !== -1 && colonAfterAt < cursorPosition) return false;
-    
+
     return true;
   }, [localSearchQuery, cursorPosition]);
 
+  // Filter properties based on user input after '@'
   const filteredProps = useMemo(() => {
     if (!showPropertyMenu) {
       setSelectedIndex(0);
       return [];
     }
-    
-    const lastAtSymbol = localSearchQuery.lastIndexOf('@', cursorPosition);
+
+    const lastAtSymbol = localSearchQuery.lastIndexOf('@', cursorPosition - 1);
     const searchText = localSearchQuery.slice(lastAtSymbol + 1, cursorPosition).toLowerCase();
-    
+
     if (!searchText) return searchableProps;
-    
+
     return searchableProps.filter(prop => 
       prop.display.toLowerCase().includes(searchText) ||
       prop.key.toLowerCase().includes(searchText)
@@ -71,19 +75,30 @@ const TaskSearchBar = ({ searchQuery, setSearchQuery }) => {
     setLocalSearchQuery(newValue);
     debouncedSetSearchQuery(newValue);
     setCursorPosition(e.target.selectionStart);
-    setAnchorEl(e.target);
+    setAnchorEl(inputRef.current);
     setSelectedIndex(0); // Reset selection when typing
   };
 
   const handlePropertySelect = (propKey) => {
-    const lastAtSymbol = localSearchQuery.lastIndexOf('@', cursorPosition);
-    const newQuery = localSearchQuery.slice(0, lastAtSymbol) + 
-                    `@${propKey}:` + 
-                    localSearchQuery.slice(cursorPosition);
+    const lastAtSymbol = localSearchQuery.lastIndexOf('@', cursorPosition - 1);
+    const beforeAt = localSearchQuery.slice(0, lastAtSymbol);
+    const afterCursor = localSearchQuery.slice(cursorPosition);
+    const newQuery = `${beforeAt}@${propKey}: ${afterCursor}`;
+
     setLocalSearchQuery(newQuery);
     debouncedSetSearchQuery(newQuery);
     setAnchorEl(null);
     setSelectedIndex(0);
+
+    // Move cursor to after the inserted property
+    setTimeout(() => {
+      const newCursorPos = (beforeAt + `@${propKey}: `).length;
+      if (inputRef.current) {
+        inputRef.current.focus();
+        inputRef.current.setSelectionRange(newCursorPos, newCursorPos);
+        setCursorPosition(newCursorPos);
+      }
+    }, 0);
   };
 
   const handleKeyDown = (e) => {
@@ -129,6 +144,7 @@ const TaskSearchBar = ({ searchQuery, setSearchQuery }) => {
   return (
     <Box sx={{ position: 'relative' }}>
       <TextField
+        inputRef={inputRef}
         fullWidth
         variant="outlined"
         placeholder="Search tasks... (Use @ to search by property)"
@@ -147,10 +163,13 @@ const TaskSearchBar = ({ searchQuery, setSearchQuery }) => {
             color: 'rgba(0, 255, 209, 0.7)',
           },
         }}
+        onSelect={(e) => {
+          setCursorPosition(e.target.selectionStart);
+        }}
       />
       
       <Popper
-        open={showPropertyMenu && filteredProps.length > 0}
+        open={showPropertyMenu && filteredProps.length > 0 && Boolean(anchorEl)}
         anchorEl={anchorEl}
         placement="bottom-start"
         sx={{ zIndex: 1300 }}

@@ -1,8 +1,7 @@
 import React from 'react';
-import TaskList from './components/TaskList';
-import SatList from './components/SatList';
+import TaskList from './components/tasks/tasks_side_panel/TaskList';
+import SatList from './components/sats/SatList';
 import MainPanel from './components/MainPanel';
-import ErrorDisplay from './components/ErrorDisplay';
 import { AgentProvider } from './store/AgentStore';
 import './styles/App.css';
 

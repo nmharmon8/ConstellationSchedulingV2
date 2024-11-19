@@ -7,8 +7,7 @@ const TaskMarker = React.memo(({ color, isFailed, coordinates, tooltipContent })
     if (isFailed) {
       return (
         <g>
-          <circle r={4} className="failed-task-pulse" />
-          <circle r={2} className="failed-task-marker" />
+          <circle r={3} className="failed-task-marker" />
           <line x1="-1.5" y1="-1.5" x2="1.5" y2="1.5" className="failed-task-x" />
           <line x1="1.5" y1="-1.5" x2="-1.5" y2="1.5" className="failed-task-x" />
         </g>
