@@ -52,27 +52,16 @@ class Observation:
     def _get_observation(self):
         current_index = int(self.current_time // self.config['max_step_duration'])
         window_index_offset = self.window_index - current_index
-
-        obs = self.task.task_info()
+        obs = {}        
+        obs.update(self.task.task_info())
         obs.update(self.satellite.get_observation())
-        x, y, z = self.task.r_LP_P
-        x = np.cos(x) * np.cos(y)
-        y = np.cos(x) * np.sin(y)
-        z = np.sin(x)
-        obs['x'] = x
-        obs['y'] = y
-        obs['z'] = z
-        obs['task_type_str'] = TaskType.to_str(self.task.task_type)
-        obs['window_index'] = self.window_index
         obs['window_index_offset'] = window_index_offset
-        obs['priority'] = self.task.priority
-        obs['n_required_collects'] = self.task.simultaneous_collects_required
-        obs['task_id'] = self.task.id
-        obs['task_storage_size'] = self.task.storage_size
-        obs['is_data_downlink'] = int(self.task.is_data_downlink)
-        obs['is_charge_task'] = int(self.task.is_charge)
-        obs['is_desat_task'] = int(self.task.is_desat)
-        obs['task_type'] = self.task.task_type
+
+        if obs['window_index_offset'] > 20:
+            print("window index offset is too high", obs)
+            raise Exception(f"Window index offset is too high {obs}")
+
+
         return obs
     
     def get_window_offset(self):

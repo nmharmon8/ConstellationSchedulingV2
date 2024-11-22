@@ -17,6 +17,7 @@ import DownlinkStation from './DownlinkStation';
 import SatelliteMarker from './SatelliteMarker';
 import TaskModal from '../tasks/TaskModal';
 import CreateTaskModal from '../CreateTaskModal';
+import TaskMarker from './TaskMarker';
 import { geoEqualEarth } from "d3-geo";
 import ObservationState from './ObservationState';
 
@@ -313,15 +314,43 @@ const MapChart = () => {
                   </g>
                 </svg>
               ) : (
-                <div
-                  className="legend-dot"
-                  style={{
-                    backgroundColor: color,
-                    boxShadow: `0 0 10px ${color}40`
-                  }}
-                />
+                <div className="legend-markers">
+                  <div
+                    className="legend-dot"
+                    style={{
+                      backgroundColor: color,
+                      boxShadow: `0 0 10px ${color}40`
+                    }}
+                  />
+                  {(taskType === 'RF' || taskType === 'IMAGING') && (
+                    <svg width="20" height="20" viewBox="-3 -3 6 6">
+                      <rect 
+                        x="-2.5" 
+                        y="-2.5" 
+                        width="5" 
+                        height="5" 
+                        className="multi-sat-marker"
+                        style={{ fill: color }}
+                        transform="rotate(45)"
+                      />
+                      <rect 
+                        x="-1" 
+                        y="-1" 
+                        width="2" 
+                        height="2" 
+                        className="multi-sat-inner"
+                        transform="rotate(45)"
+                      />
+                    </svg>
+                  )}
+                </div>
               )}
-              <span className="legend-text">{taskType}</span>
+              <div className="legend-text-group">
+                <span className="legend-text">{taskType}</span>
+                {(taskType === 'RF' || taskType === 'IMAGING') && (
+                  <span className="legend-subtext">◆ = Multi-sat</span>
+                )}
+              </div>
             </div>
           ))}
         </div>
@@ -362,31 +391,17 @@ const MapChart = () => {
                 onClick={() => handleTaskClick(task)}
               />
             ) : (
-              <Marker
+              <TaskMarker
                 key={task.id}
+                color={taskColors[task.task_type_str]}
+                isFailed={task.task_fail_count > 0}
+                isMultiSat={task.simultaneous_collects_required > 1}
                 coordinates={[task.longitude, task.latitude]}
-                data-tooltip-id="task-tooltip"
-                data-tooltip-content={`${task.task_type_str} (Priority: ${task.priority.toFixed(2)})${
+                tooltipContent={`${task.task_type_str} (Priority: ${task.priority.toFixed(2)})${
                   task.task_fail_count > 0 ? ` - Failed ${task.task_fail_count} times` : ''
                 }`}
                 onClick={() => handleTaskClick(task)}
-              >
-                <g>
-                  {task.task_fail_count > 0 ? (
-                    <>
-                      <circle r={2} className="failed-task-marker" />
-                      <line x1="-1.5" y1="-1.5" x2="1.5" y2="1.5" className="failed-task-x" />
-                      <line x1="1.5" y1="-1.5" x2="-1.5" y2="1.5" className="failed-task-x" />
-                    </>
-                  ) : (
-                    <circle 
-                      r={2}
-                      className="marker-circle"
-                      fill={taskColors[task.task_type_str]} 
-                    />
-                  )}
-                </g>
-              </Marker>
+              />
             )
           ))}
 

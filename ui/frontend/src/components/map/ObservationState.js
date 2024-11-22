@@ -43,7 +43,14 @@ const ObservationState = () => {
   ));
 
   return (
-    <div className="observation-table-container">
+    <div className="observation-table-container flex-1 overflow-auto pr-1 w-full
+      [&::-webkit-scrollbar]:w-2
+      [&::-webkit-scrollbar-track]:bg-space-darker
+      [&::-webkit-scrollbar-thumb]:bg-gray-600
+      [&::-webkit-scrollbar-thumb]:rounded-full
+      [&::-webkit-scrollbar-thumb]:hover:bg-gray-500
+      [&::-webkit-scrollbar:horizontal]:h-2"
+    >
       <table className="observation-table">
         <thead>
           <tr>

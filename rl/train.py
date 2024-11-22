@@ -39,7 +39,7 @@ ppo_config = (
 ppo_config.model.update(
     {
         "custom_model": "simple_model",
-        # "custom_action_dist": "message_dist",
+        "custom_action_dist": "message_dist",
         "custom_model_config":config['model']
     }
 )
@@ -59,11 +59,29 @@ checkpoint_config = CheckpointConfig(
 
 storage_path = f"/data/nm/{name}"
 
-results = tune.Tuner(
-    "PPO",
-    run_config=air.RunConfig(stop=stop, verbose=1, checkpoint_config=checkpoint_config, storage_path=storage_path),
-    param_space=ppo_config,
-).fit()
+# Create tuner based on resume configuration
+if config.get('resume_training', False) and config.get('checkpoint_path'):
+    # Resume training from checkpoint
+    tuner = tune.Tuner.restore(
+        path=config['checkpoint_path'],
+        trainable="PPO",
+        param_space=ppo_config,
+    )
+else:
+    # Start new training run
+    tuner = tune.Tuner(
+        "PPO",
+        run_config=air.RunConfig(
+            stop=stop, 
+            verbose=1, 
+            checkpoint_config=checkpoint_config, 
+            storage_path=storage_path,
+        ),
+        param_space=ppo_config,
+    )
+
+# Run the training
+results = tuner.fit()
 
 """
 python -m rl.train --config=rl/configs/basic_config.yaml --name=v58_full_fsw

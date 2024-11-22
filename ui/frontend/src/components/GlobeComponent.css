@@ -1,13 +1,23 @@
 .globe-container {
   width: 100%;
-  height: 100vh;
+  height: 100%;
   background-color: #000011;
+  position: relative;
+  display: flex;
+  justify-content: flex-start;
 }
 
-.globe-wrapper {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
+/* Target the Globe's canvas element specifically */
+.globe-container > div,
+.globe-container > canvas {
+  position: relative !important;
+  left: -300px !important;
 }
+
+/* If the above doesn't work, try this more specific selector */
+.globe-container > div:first-child,
+.globe-container > canvas:first-child {
+  position: relative !important;
+  left: -300px !important;
+}
+

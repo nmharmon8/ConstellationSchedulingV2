@@ -212,7 +212,12 @@ function TaskList() {
       </div>
 
       {/* Task List Content */}
-      <div className="flex-1 overflow-y-auto pr-1 w-full scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-space-dark">
+      <div className="flex-1 overflow-y-auto pr-1 w-full 
+        [&::-webkit-scrollbar]:w-2
+        [&::-webkit-scrollbar-track]:bg-space-darker
+        [&::-webkit-scrollbar-thumb]:bg-gray-600
+        [&::-webkit-scrollbar-thumb]:rounded-full
+        [&::-webkit-scrollbar-thumb]:hover:bg-gray-500">
         {!sortedTasks?.length ? (
           <Typography variant="body1" className="text-center text-gray-400">
             No tasks available.

@@ -1,6 +1,8 @@
 
 local_mode: False # I think reduces to single process, for debugging
 use_gpu: true
+resume_training: false
+checkpoint_path: null  # Set this to the checkpoint path when resuming
 
 env_runners:
   sample_timeout_s: 1000000.0
@@ -14,8 +16,8 @@ training_args:
   lr: 0.00003
   gamma: 0.98
   train_batch_size: 360
-  sgd_minibatch_size: 64 # Default is 128
-  num_sgd_iter: 16 # Default is 30
+  sgd_minibatch_size: 16 # Default is 128
+  num_sgd_iter: 24 # Default is 30
   lambda_: 0.95
   kl_target: 0.01
   kl_coeff: 0.2
@@ -98,7 +100,7 @@ env:
     x: 0
     y: 0
     z: 0
-    window_index_offset: 200
+    window_index_offset: 20
     priority: -1
     simultaneous_collects_required: 0
     is_data_downlink: 0

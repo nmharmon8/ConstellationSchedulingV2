@@ -110,7 +110,8 @@ class Task:
             'is_noop': self.is_noop,
             'is_charge': self.is_charge,
             'is_collection': self.is_collection,
-            'is_desat': self.is_desat,
+            'is_charge_task': self.is_charge,
+            'is_desat_task': self.is_desat,
             'user_id': self.user_id,
             'priority': 0,
             'simultaneous_collects_required': 0,
@@ -129,7 +130,7 @@ class Task:
 
 class PositionTask(Task):
 
-    def __init__(self, name, task_type, r_LP_P, task_duration, max_step_duration, min_elev, user_id="system"):
+    def __init__(self, name, task_type, r_LP_P, task_duration, max_step_duration, n_access_windows, min_elev, user_id="system"):
 
         Task.__init__(self, name, task_type, user_id)
 
@@ -139,38 +140,37 @@ class PositionTask(Task):
         self.task_duration = task_duration
 
         self.max_step_duration = max_step_duration
+        self.n_access_windows = n_access_windows
         self.collection_windows = defaultdict(list)
         self.r_LP_P = r_LP_P
+        self.lat, self.lon, self.alt = ecef_to_latlon(self.r_LP_P[0], self.r_LP_P[1], self.r_LP_P[2])
 
     @property
     def latitude(self):
-        lat, _, _ = ecef_to_latlon(self.r_LP_P[0], self.r_LP_P[1], self.r_LP_P[2])
-        return float(lat)
+        return float(self.lat)
     
     @property
     def longitude(self):
-        _, lon, _ = ecef_to_latlon(self.r_LP_P[0], self.r_LP_P[1], self.r_LP_P[2])
-        return float(lon)
+        return float(self.lon)
     
     @property
     def altitude(self):
-        _, _, alt = ecef_to_latlon(self.r_LP_P[0], self.r_LP_P[1], self.r_LP_P[2])
-        return float(alt)
+        return float(self.alt)
 
     def add_window(self, satellite, new_window):
 
-        window_start = new_window[0]
-        window_end = new_window[1]
+        window_start_time = new_window[0]
+        window_end_time = new_window[1]
 
-        while window_start < window_end:
-            index = int(window_start // self.max_step_duration)
+        while window_start_time < window_end_time:
+            index = int(window_start_time // self.max_step_duration)
             while index >= len(self.collection_windows[satellite.id]):
                 self.collection_windows[satellite.id].extend([0] * max(1, len(self.collection_windows[satellite.id])))
-            index_end = self.max_step_duration * (index + 1)
-            duration = min(index_end, window_end) - window_start
+            end_time = self.max_step_duration * (index + 1)
+            duration = min(end_time, window_end_time) - window_start_time
             if duration > self.task_duration:
                 self.collection_windows[satellite.id][index] = 1
-            window_start = index_end
+            window_start_time = end_time
 
     def get_window(self, satellite, time=None, window_index=None):
         assert time is not None or window_index is not None
@@ -194,33 +194,35 @@ class PositionTask(Task):
         Returns the index of the next window for a satellite, or None if there are no upcoming windows
         """
         upcoming_windows = []
-        for i in range(int(start_time // self.max_step_duration), len(self.collection_windows[satellite.id])):
+        start_index = int(start_time // self.max_step_duration)
+        for i in range(start_index, start_index + self.n_access_windows):
             if self.is_task_possible_in_window(satellite, i):
                 upcoming_windows.append(i)
         return upcoming_windows
     
     def task_info(self):
-        info = Task.task_info(self)
+        info = {}
+        info.update(super().task_info())
         info.update({
             'latitude': self.latitude,
             'longitude': self.longitude,
             'altitude': self.altitude,
             'min_elev': self.min_elev,
         })
-        
         return info
 
 class CollectTask(PositionTask):
 
-    def __init__(self, name, r_LP_P, priority, simultaneous_collects_required, task_duration, task_type, storage_size, max_step_duration, min_elev, user_id="system"):
-        PositionTask.__init__(self, name, task_type, r_LP_P, task_duration, max_step_duration, min_elev, user_id)
+    def __init__(self, name, r_LP_P, priority, simultaneous_collects_required, task_duration, task_type, storage_size, max_step_duration, n_access_windows, min_elev, user_id="system"):
+        PositionTask.__init__(self, name=name, task_type=task_type, r_LP_P=r_LP_P, task_duration=task_duration, max_step_duration=max_step_duration, n_access_windows=n_access_windows, min_elev=min_elev, user_id=user_id)
 
         self.priority = priority
         self.simultaneous_collects_required = simultaneous_collects_required
         self.storage_size = storage_size # In MB
 
     def task_info(self):
-        info = PositionTask.task_info(self)
+        info = {}
+        info.update(super().task_info())
         info.update({
             'priority': self.priority,
             'simultaneous_collects_required': self.simultaneous_collects_required,
@@ -238,7 +240,11 @@ class CollectTask(PositionTask):
         x *= radius / np.linalg.norm(x)
         
         # Simultaneous Collects Required
-        simultaneous_collects_required = np.random.randint(1, config['max_sat_coordination'] + 1)
+        if np.random.rand() < 0.5:
+            simultaneous_collects_required = 1
+        else:
+            # Don't create as many tasks that require coordination as this makes training harder
+            simultaneous_collects_required = np.random.randint(1, config['max_sat_coordination'] + 1)
         
         # Priority
         priority = np.random.rand()
@@ -269,6 +275,7 @@ class CollectTask(PositionTask):
             task_type=task_type,
             storage_size=storage_size,
             max_step_duration=config['max_step_duration'],
+            n_access_windows=config['n_access_windows'],
             min_elev=config['task_min_elev'],
             user_id=user_id
         )
@@ -322,8 +329,8 @@ class CollectTask(PositionTask):
     
     
 class DownlinkTask(PositionTask):
-    def __init__(self, name, r_LP_P, priority, task_duration, max_step_duration, min_elev, user_id="system"):
-        PositionTask.__init__(self, name, TaskType.DATA_DOWNLINK, r_LP_P, task_duration, max_step_duration, min_elev, user_id)
+    def __init__(self, name, r_LP_P, priority, task_duration, max_step_duration, n_access_windows, min_elev, user_id="system"):
+        PositionTask.__init__(self, name=name, task_type=TaskType.DATA_DOWNLINK, r_LP_P=r_LP_P, task_duration=task_duration, max_step_duration=max_step_duration, n_access_windows=n_access_windows, min_elev=min_elev, user_id=user_id)
         self.priority = priority
         self.sats_collecting = []
 
@@ -345,6 +352,7 @@ class DownlinkTask(PositionTask):
                 priority=config['downlink_task_priority'],
                 task_duration=task_duration,
                 max_step_duration=config['max_step_duration'],
+                n_access_windows=config['n_access_windows'],
                 min_elev=0.17453292519943295, # 10 degrees
                 user_id="system"
             )

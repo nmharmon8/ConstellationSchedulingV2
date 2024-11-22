@@ -73,6 +73,10 @@ class SatelliteTasking(Env):
 def main(config):
     from pprint import pprint
     import random
+    import cProfile
+    import pstats
+    import io
+
     env = SatelliteTasking(config['env'])
     obs, info = env.reset()
     done = False
@@ -80,14 +84,34 @@ def main(config):
     total_reward = 0
 
     step = 0
-    while True: #not done and not terminated:
+
+    # # Initialize the profiler
+    # profiler = cProfile.Profile()
+    # profiler.enable()
+
+    while True:  # not done and not terminated:
         action = [step % 4] * config['env']['n_sats']
         obs, reward, done, terminated, info = env.step(action)
         total_reward += reward
         step += 1
 
-        # Wait on input to continue
-        input("Press Enter to continue...")
+        # # Optional: Add a condition to break the loop after a certain number of steps
+        # if step >= 10:
+        #     break
+
+    # profiler.disable()
+
+    # # Create a stream to hold the profiling results
+    # s = io.StringIO()
+    # sortby = 'cumulative'
+    # ps = pstats.Stats(profiler, stream=s).sort_stats(sortby)
+    # ps.print_stats()
+
+    # # Print the profiling results
+    # print(s.getvalue())
+
+        # # Wait on input to continue
+        # input("Press Enter to continue...")
             
 
 

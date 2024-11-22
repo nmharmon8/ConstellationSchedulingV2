@@ -369,6 +369,7 @@ export const AgentProvider = ({ children }) => {
     isTaskGPTModalOpen,
     setIsTaskGPTModalOpen,
     isTaskGPTProcessing,
+    completedTasks,
   };
 
   return (

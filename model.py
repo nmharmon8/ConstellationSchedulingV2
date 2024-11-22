@@ -56,6 +56,15 @@ class SimpleModel(TorchModelV2, nn.Module):
             nn.ReLU(),
         )
 
+        self.planning = nn.ModuleDict(dict(
+            h = nn.ModuleList([Block(512, 8, False, causal=False, time_emd=False, dropout=0.0) for _ in range(3)]),
+            ln_f = LayerNorm(512, bias=False)
+        ))
+        # self.planning = nn.Sequential(
+        #     nn.Linear(512 * self.n_sats, 1024),
+        #     nn.ReLU(),
+        # )
+
         self.dropout = nn.Dropout(0.5)
 
         self.action_branch = nn.Linear(512, self.n_actions, bias=True)
@@ -69,15 +78,20 @@ class SimpleModel(TorchModelV2, nn.Module):
         b, n_sats, n_access_windows, n_features = obs.shape
 
         tasks = self.task_encoder(obs)
-        # tasks = self.dropout(tasks)
         observations = self.observation_encoder(tasks.reshape(b, n_sats, -1))
-        # observations = self.dropout(observations)
+
+        print(f"Observations shape: {observations.shape}")
+
+        for block in self.planning.h:
+            observations = block(observations)
+        observations = self.planning.ln_f(observations)
+        print(f"Observations shape: {observations.shape}")
+        # observations = self.planning(observations.reshape(b, -1))
 
         self._features = observations.clone()
         actions = self.action_branch(observations)
         print(f"Actions shape: {actions.shape}")
-        # actions = actions.reshape(b, self.n_sats, self.n_actions)
-        actions = actions.reshape(b, -1)
+        # actions = actions.reshape(b, -1)
         return actions, []
     
     

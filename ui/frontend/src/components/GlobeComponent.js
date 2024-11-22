@@ -230,8 +230,8 @@ function SatelliteGlobe() {
       <div className="globe-container">
         <Globe
           ref={globeEl}
-          width={800}
-          height={800}
+          width={window.innerWidth}
+          height={window.innerHeight}
           globeImageUrl="//unpkg.com/three-globe/example/img/earth-blue-marble.jpg"
           bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
           backgroundImageUrl="//unpkg.com/three-globe/example/img/night-sky.png"

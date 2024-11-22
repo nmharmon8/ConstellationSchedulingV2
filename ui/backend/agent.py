@@ -67,9 +67,6 @@ class SatelliteGuard:
                             actions[i] = idx
                         else:
                             actions[i] = len(observations) - 1
-
-
-
         return actions
 
 class Agent:
@@ -106,7 +103,7 @@ class Agent:
         ppo_config.model.update(
             {
                 "custom_model": "simple_model",
-                # "custom_action_dist": "message_dist",
+                "custom_action_dist": "message_dist",
                 "custom_model_config":config['model']
             }
         )
@@ -122,9 +119,9 @@ class Agent:
             latest_checkpoint = max(checkpoints, key=lambda x: int(x.split("_")[-1]))
             return latest_checkpoint
 
-        # checkpoint = find_latest_checkpoint(f"/data/nm/{model_name}/")
-        # print(f"Restoring from {checkpoint}")
-        # self.algo.restore(checkpoint)
+        checkpoint = find_latest_checkpoint(f"/data/nm/{model_name}/")
+        print(f"Restoring from {checkpoint}")
+        self.algo.restore(checkpoint)
 
         config['env']['time_limit'] = 1000000
         config['env']['min_tasks'] = 500
@@ -153,7 +150,7 @@ class Agent:
     def get_info(self):
         return StepInfo(self.info)
     
-    def add_new_task(self, name, lat, lon, priority, task_type, min_elev, duration):
+    def add_new_task(self, name, lat, lon, priority, task_type, min_elev, duration, user_id):
         from rl.tasks.task import CollectTask
         from bsk_rl.utils.orbital import lla2ecef
         import uuid
@@ -172,7 +169,9 @@ class Agent:
             task_type=task_type,
             storage_size=500,  # Default storage size in MB
             max_step_duration=200,
-            min_elev=min_elev
+            n_access_windows=20,
+            min_elev=min_elev,
+            user_id=user_id
         )
 
         self.env.simulator.task_manager.insert_new_task(task)
@@ -188,6 +187,8 @@ class Agent:
         else:
             print("Computing action without exploration")
             action = self.algo.compute_single_action(self.obs, explore=False)
+
+        action = self.guard.guard_actions(action)
 
         next_obs, reward, done, truncated, info = self.env.step(action)
 

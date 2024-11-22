@@ -91,57 +91,11 @@
   opacity: 0.5;
 }
 
-/* Scrollbar styling */
-.observation-table-container::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-.observation-table-container::-webkit-scrollbar-track {
-  background: rgba(17, 34, 64, 0.95);
-  border-radius: 4px;
-  border: 1px solid rgba(100, 255, 218, 0.1);
-}
-
-.observation-table-container::-webkit-scrollbar-thumb {
-  background: linear-gradient(90deg, 
-    rgba(100, 255, 218, 0.8) 0%,
-    var(--accent-blue) 100%
-  );
-  border-radius: 4px;
-  border: 1px solid rgba(100, 255, 218, 0.2);
-  box-shadow: 0 0 5px rgba(100, 255, 218, 0.3);
-}
-
-.observation-table-container::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(90deg,
-    rgba(100, 255, 218, 1) 0%,
-    var(--accent-blue) 100%
-  );
-  box-shadow: 0 0 8px rgba(100, 255, 218, 0.5);
-}
-
-.task-cell.active {
-  animation: pulse 2s infinite;
-}
-
-/* Add wheel scroll behavior */
-.observation-table-container {
-  scrollbar-width: thin;
-  scrollbar-color: var(--accent-blue) rgb(17, 34, 64);
-}
-
-/* Remove scrollbar arrows */
-.observation-table-container::-webkit-scrollbar-button {
-  display: none;
-}
-
-/* Ensure tbody can scroll */
+/* Keep table structure styles */
 .observation-table tbody {
   display: table-row-group;
 }
 
-/* Make sure tr and td elements maintain proper layout */
 .observation-table tr {
   display: table-row;
 }
@@ -149,19 +103,6 @@
 .observation-table td,
 .observation-table th {
   display: table-cell;
-}
-
-/* Add specific styles for horizontal scrollbar */
-.observation-table-container::-webkit-scrollbar-track:horizontal {
-  margin: 0 8px;
-}
-
-.observation-table-container::-webkit-scrollbar-thumb:horizontal {
-  background: linear-gradient(90deg, 
-    rgba(100, 255, 218, 0.8) 0%,
-    var(--accent-blue) 100%
-  );
-  border-radius: 4px;
 }
 
 /* Add styles for scrollbar corner */

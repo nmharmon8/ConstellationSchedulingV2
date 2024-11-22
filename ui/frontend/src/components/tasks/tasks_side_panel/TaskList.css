@@ -128,16 +128,27 @@
 
 /* Customize scrollbar for better aesthetics */
 .task-list-content::-webkit-scrollbar {
-    width: 4px;
+    width: 8px;
 }
 
 .task-list-content::-webkit-scrollbar-track {
     background: #1e1e2f;
+    border-radius: 9999px;
 }
 
 .task-list-content::-webkit-scrollbar-thumb {
-    background-color: #444;
-    border-radius: 2px;
+    background-color: #4a5568;
+    border-radius: 9999px;
+    border: 2px solid #1e1e2f;
+}
+
+.task-list-content::-webkit-scrollbar-thumb:hover {
+    background-color: #718096;
+}
+
+/* Remove default scrollbar buttons */
+.task-list-content::-webkit-scrollbar-button {
+    display: none;
 }
 
 /* Responsive adjustments */

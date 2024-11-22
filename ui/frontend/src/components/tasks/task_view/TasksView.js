@@ -89,7 +89,12 @@ const TasksView = () => {
               Active Tasks ({filteredActiveTasks.length})
             </h2>
           </div>
-          <div className="flex-1 overflow-y-auto pr-1">
+          <div className="flex-1 overflow-y-auto pr-1
+            [&::-webkit-scrollbar]:w-2
+            [&::-webkit-scrollbar-track]:bg-space-darker
+            [&::-webkit-scrollbar-thumb]:bg-gray-600
+            [&::-webkit-scrollbar-thumb]:rounded-full
+            [&::-webkit-scrollbar-thumb]:hover:bg-gray-500">
             {filteredActiveTasks.map(task => (
               <TaskCard 
                 key={task.id}
@@ -108,7 +113,12 @@ const TasksView = () => {
               Completed Tasks ({filteredCompletedTasks.length})
             </h2>
           </div>
-          <div className="flex-1 overflow-y-auto pr-1">
+          <div className="flex-1 overflow-y-auto pr-1
+            [&::-webkit-scrollbar]:w-2
+            [&::-webkit-scrollbar-track]:bg-space-darker
+            [&::-webkit-scrollbar-thumb]:bg-gray-600
+            [&::-webkit-scrollbar-thumb]:rounded-full
+            [&::-webkit-scrollbar-thumb]:hover:bg-gray-500">
             {filteredCompletedTasks.map(task => (
               <TaskCard
                 key={task.id}

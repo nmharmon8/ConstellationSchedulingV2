@@ -34,7 +34,12 @@ function SatList() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto pr-1 w-full scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-space-dark">
+      <div className="flex-1 overflow-y-auto pr-1 w-full 
+        [&::-webkit-scrollbar]:w-2
+        [&::-webkit-scrollbar-track]:bg-space-darker
+        [&::-webkit-scrollbar-thumb]:bg-gray-600
+        [&::-webkit-scrollbar-thumb]:rounded-full
+        [&::-webkit-scrollbar-thumb]:hover:bg-gray-500">
         {satelliteIds.map((satId) => {
           const sat = currentSatState[satId];
 

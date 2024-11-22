@@ -1,6 +1,6 @@
 import random
 import numpy as np
-
+from collections import OrderedDict
 from scipy.optimize import minimize_scalar, root_scalar
 from Basilisk.utilities import orbitalMotion
 
@@ -23,11 +23,19 @@ class TaskManager:
 
         self.completed_tasks = []
 
+        self.observation_cache = OrderedDict()
+
     def get_observations(self, satellite, current_time):
-        self.calculate_access_windows(satellite, calculation_start=current_time, duration=self.max_step_duration * self.n_access_windows)
-        upcoming_tasks = self.get_upcoming_tasks(satellite, current_time)
-        observation = Observations(current_time, upcoming_tasks, satellite, self.config)
-        return observation
+        if (satellite.id, current_time) not in self.observation_cache:
+            self.calculate_access_windows(satellite, calculation_start=current_time, duration=self.max_step_duration * self.n_access_windows)
+            upcoming_tasks = self.get_upcoming_tasks(satellite, current_time)
+            observation = Observations(current_time, upcoming_tasks, satellite, self.config)
+            self.observation_cache[(satellite.id, current_time)] = observation
+
+        # Remove the oldest observation if the cache is too large
+        if len(self.observation_cache) > self.config['n_sats']: # should be set to the number of satellites
+            self.observation_cache.popitem(last=False) # Remove the oldest observation
+        return self.observation_cache[(satellite.id, current_time)]
     
     def reset(self):
         self.n_tasks = random.randint(self.config['min_tasks'], self.config['max_tasks'])

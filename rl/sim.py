@@ -94,13 +94,14 @@ class Simulator(SimulationBaseClass.SimBaseClass):
     def is_alive(self):
         return all(sat.is_alive() for sat in self.satellites)
 
-    def step(self, actions):
+    def step(self, actions, get_info=False):
 
         print(f"Sim time: {self.sim_time}")
 
         # Simulation time
         end_time = self.sim_time_ns + mc.sec2nano(self.max_step_duration_sec)
 
+    
         info = {
             'actions': actions,
             'start_time': self.sim_time_ns * mc.NANO2SEC,
@@ -113,14 +114,16 @@ class Simulator(SimulationBaseClass.SimBaseClass):
             'end_satellites': {},
             'end_action_tasks': {},
         }
-
-        # Collect Info
+            # Collect Info
         for sat, action_idx in zip(self.satellites, actions):
             observation = self.task_manager.get_observations(sat, self.sim_time)
             info['init_observation'][sat.id] = observation.get_observations_info()
             info['init_satellites'][sat.id] = sat.get_info()
             task, _ = observation.action_to_task(action_idx)
             info['init_action_tasks'][sat.id] = task.task_info()
+      
+
+       
 
         # Start actions
         sat_tasks = []
@@ -142,6 +145,7 @@ class Simulator(SimulationBaseClass.SimBaseClass):
         # Step the task manager to calculate the reward
         reward = self.task_manager.step()
 
+    
         # Collect Info
         for sat, task in sat_tasks:
             observation = self.task_manager.get_observations(sat, self.sim_time)
