@@ -47,34 +47,6 @@ function SatelliteGlobe() {
       []
     );
     
-    // Task geometries based on type
-    const taskGeometries = useMemo(() => ({
-      default: new THREE.SphereGeometry(TASK_SIZE, 16, 16),
-      downlink: new THREE.Group()
-    }), []);
-
-    // Create downlink station geometry
-    useEffect(() => {
-      if (taskGeometries.downlink) {
-        // Base
-        const base = new THREE.Mesh(
-          new THREE.CylinderGeometry(TASK_SIZE * 2, TASK_SIZE * 2, TASK_SIZE, 16),
-          new THREE.MeshLambertMaterial({ color: '#ffffff', transparent: true, opacity: 0.3 })
-        );
-        
-        // Dish
-        const dish = new THREE.Mesh(
-          new THREE.SphereGeometry(TASK_SIZE * 3, 16, 16, 0, Math.PI),
-          new THREE.MeshLambertMaterial({ color: '#ffffff', transparent: true, opacity: 0.5 })
-        );
-        dish.rotation.x = Math.PI / 4;
-        dish.position.y = TASK_SIZE * 2;
-        
-        taskGeometries.downlink.add(base);
-        taskGeometries.downlink.add(dish);
-      }
-    }, [taskGeometries.downlink]);
-    
     const STEP_DURATION = 5000; // Match MapChart animation duration
     const animationRef = useRef(null);
     
@@ -246,7 +218,17 @@ function SatelliteGlobe() {
             altitude: 2.5
           }}
           
-          // Satellites
+          // Remove all label-related props and replace with custom points
+          pointsData={taskData}
+          pointLat="lat"
+          pointLng="lng"
+          pointAltitude="alt"
+          pointRadius={TASK_SIZE}
+          pointColor={d => taskColors[d.type]}
+          pointResolution={12}
+          onPointClick={handleTaskClick}
+          
+          // Keep existing satellite objects
           objectsData={satData}
           objectLabel="name"
           objectLat="lat"
@@ -254,51 +236,7 @@ function SatelliteGlobe() {
           objectAltitude="alt"
           objectThreeObject={() => new THREE.Mesh(satGeometry, satMaterial)}
           
-          // Tasks
-          customLayerData={taskData}
-          customLayerLabel={d => `${d.type} (Priority: ${d.priority.toFixed(2)})`}
-          customLayerLat="lat"
-          customLayerLng="lng"
-          customLayerAltitude="alt"
-          customLayerThreeObject={d => {
-            // Choose geometry based on task type
-            const geometry = d.type === 'DATA_DOWNLINK' 
-              ? taskGeometries.downlink.clone()
-              : taskGeometries.default;
-              
-            const material = new THREE.MeshLambertMaterial({
-              color: taskColors[d.type],
-              opacity: d.failCount > 0 ? 0.5 : 0.8,
-              transparent: true
-            });
-            
-            const mesh = d.type === 'DATA_DOWNLINK'
-              ? geometry
-              : new THREE.Mesh(geometry, material);
-              
-            // Add click handler
-            mesh.callback = () => handleTaskClick(d);
-            
-            // Add failure indicator if needed
-            if (d.failCount > 0) {
-              const failureX = new THREE.Group();
-              const line1 = new THREE.Mesh(
-                new THREE.BoxGeometry(TASK_SIZE * 3, TASK_SIZE * 0.5, TASK_SIZE * 0.5),
-                new THREE.MeshBasicMaterial({ color: '#ffffff' })
-              );
-              const line2 = line1.clone();
-              line1.rotation.z = Math.PI / 4;
-              line2.rotation.z = -Math.PI / 4;
-              failureX.add(line1);
-              failureX.add(line2);
-              mesh.add(failureX);
-            }
-            
-            return mesh;
-          }}
-          onCustomLayerClick={handleTaskClick}
-          
-          // Connection arcs
+          // Keep existing paths (arcs)
           pathsData={pathsData}
           pathPoints="points"
           pathPointLat="lat"
@@ -316,7 +254,6 @@ function SatelliteGlobe() {
           atmosphereAltitude={0.1}
         />
         
-        {/* Add TaskModal */}
         <TaskModal 
           task={selectedTask}
           open={!!selectedTask}

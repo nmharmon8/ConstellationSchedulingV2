@@ -21,3 +21,13 @@
   left: -300px !important;
 }
 
+.globe-container * {
+  transition: none !important;
+}
+
+/* Remove any transform or transition properties from canvas elements */
+.globe-container canvas {
+  transform: none !important;
+  transition: none !important;
+}
+
