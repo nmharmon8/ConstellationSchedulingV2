@@ -1,0 +1,14 @@
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Install dependencies
+COPY ui/frontend/package*.json ./
+RUN npm install
+
+# Copy the rest of the application
+COPY ui/frontend/ .
+
+EXPOSE 3000
+
+CMD ["npm", "start"] 

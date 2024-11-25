@@ -361,7 +361,7 @@ class App:
             print('Received custom event: ' + str(json))
             emit('response_event', {'data': 'Server received custom_event'}, broadcast=True)
 
-    def run(self, debug=True, host='localhost', port=4000):
+    def run(self, debug=True, host='0.0.0.0', port=4000):
         # Use socketio.run instead of app.run
         self.socketio.run(self.app, debug=debug, host=host, port=port)
 

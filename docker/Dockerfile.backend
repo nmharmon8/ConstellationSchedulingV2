@@ -1,0 +1,21 @@
+FROM pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime
+
+RUN pip install deprecated pydantic==1.10.12 numpy==1.24.3 scikit-image pandas pyarrow lz4 tensorboard "ray[all]" gymnasium dm_tree scipy rotary_embedding_torch pymap3d pettingzoo swig wheel 'conan<2.0' matplotlib  pytest pytest-html pytest-xdist setuptools-scm cmake 
+
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y build-essential python3-tk git tmux 
+
+WORKDIR /
+RUN git clone https://github.com/AVSLab/basilisk.git
+WORKDIR /basilisk
+RUN git checkout fc71539
+RUN python conanfile.py
+
+# Install additional requirements for the Flask backend
+RUN pip install flask flask-socketio flask-cors eventlet requests tqdm
+
+# Set the working directory
+WORKDIR /ConstSched
+
+# Command to run the Flask application
+# CMD ["python", "ui/backend/app.py", "--config", "rl/configs/backend_config.yaml"] 

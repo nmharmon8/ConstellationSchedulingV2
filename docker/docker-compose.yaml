@@ -1,12 +1,12 @@
-
 services:
   constsched:
     build:
       context: .
       dockerfile: Dockerfile.ray
-    shm_size: '10.24gb' 
+    shm_size: '100gb' 
     network_mode: host
     volumes:
+      - /data:/data
       - ../:/ConstSched
     working_dir: /ConstSched
     deploy:
@@ -16,3 +16,38 @@ services:
             - capabilities: [gpu]
     runtime: nvidia
     command: tail -f /dev/null 
+
+  backend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.backend
+    shm_size: '10.24gb' 
+    network_mode: host
+    volumes:
+      - /data:/data
+      - ../:/ConstSched
+    environment:
+      - /data:/data
+      - PYTHONPATH=/ConstSched
+    depends_on:
+      - constsched
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - capabilities: [gpu]
+    runtime: nvidia
+    command: tail -f /dev/null 
+
+  ui:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.ui
+    network_mode: host
+    volumes:
+      - ../ui/frontend:/app
+      - /app/node_modules
+    environment:
+      - WATCHPACK_POLLING=true
+      - CHOKIDAR_USEPOLLING=true
+    stdin_open: true 

@@ -74,6 +74,15 @@ class SatelliteGuard:
                             actions[i] = len(observations) - 1
         return actions
 
+def find_latest_checkpoint(model_dir):
+    import glob
+    checkpoints = glob.glob(model_dir + "/*/*/checkpoint*")
+    if not checkpoints:
+        raise ValueError(f"No checkpoints found in {model_dir}")
+    # Sort checkpoints by number and get the latest one
+    latest_checkpoint = max(checkpoints, key=lambda x: int(x.split("_")[-1]))
+    return latest_checkpoint
+
 class Agent:
 
     def __init__(self, config, greedy=False):
@@ -94,7 +103,10 @@ class Agent:
             PPOConfig()
             .training(**config['training_args'])
             .env_runners(**config['env_runners'])
-            .api_stack(enable_rl_module_and_learner=False)
+            .api_stack(
+                enable_rl_module_and_learner=False,
+                enable_env_runner_and_connector_v2=False,
+            )
             .environment(
                 env=SatelliteTasking,
                 env_config=config['env'],
@@ -113,18 +125,11 @@ class Agent:
 
         self.algo = ppo_config.build()
 
-        def find_latest_checkpoint(model_dir):
-            import glob
-            checkpoints = glob.glob(model_dir + "/*/*/checkpoint*")
-            if not checkpoints:
-                raise ValueError(f"No checkpoints found in {model_dir}")
-            # Sort checkpoints by number and get the latest one
-            latest_checkpoint = max(checkpoints, key=lambda x: int(x.split("_")[-1]))
-            return latest_checkpoint
-
-        # checkpoint = find_latest_checkpoint(f"/data/nm/{model_name}/")
-        # print(f"Restoring from {checkpoint}")
-        self.algo.restore("/data/nm/v154_geo/checkpoint_400/")
+        checkpoint = find_latest_checkpoint(f"{config['checkpoint_path']}/")
+        # Convert to absolute path
+        checkpoint = os.path.abspath(checkpoint)
+        print(f"Restoring from {checkpoint}")
+        self.algo.restore(checkpoint)
 
         config['env']['time_limit'] = 1000000
         config['env']['min_tasks'] = 500

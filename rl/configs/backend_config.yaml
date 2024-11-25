@@ -1,8 +1,11 @@
 
 local_mode: false
 use_gpu: true
-resume: false
-checkpoint_path: "/data/nm/v153_geo/checkpoint_300/"  # Set this to the checkpoint path when resuming
+
+
+
+checkpoint_path: "../../v177_geo/"
+# checkpoint_path: "/data/nm/v177_geo/"
 
 env_runners:
   sample_timeout_s: 1000000.0
@@ -16,7 +19,7 @@ training_args:
   lr: 0.00003
   gamma: 0.98
   train_batch_size: 300
-  sgd_minibatch_size: 64 # Default is 128
+  minibatch_size: 64 # Default is 128
   num_sgd_iter: 16 # Default is 30
   lambda_: 0.95
   kl_target: 0.01
@@ -24,24 +27,7 @@ training_args:
   use_kl_loss: True
   clip_param: 0.2
   grad_clip: 0.5
-  # lr: 0.00003
-  # gamma: 0.99
-  # train_batch_size: 512
-  # sgd_minibatch_size: 32 # Default is 128
-  # num_sgd_iter: 256 # Default is 30
-  # lambda_: 0.95
-  # kl_target: 0.01
-  # kl_coeff: 0.2
-  # use_kl_loss: True
-  # clip_param: 0.2
-  # grad_clip: 0.5
-  # entropy_coeff_schedule: [[0, 0.02], [100000, 0.01], [200000, 0.005]]
-
 model:
-
-  # resume_args:
-  #   resume: True
-  #   checkpoint_path: "/data/nm/v135_geo/PPO_2024-11-21_15-06-33/PPO_SatelliteTasking_de70a_00000_0_2024-11-21_15-06-33/checkpoint_000198/policies/default_policy/model/model.pt"
 
   feature_model:
     n_embd: 128
@@ -57,8 +43,6 @@ model:
     bias: False
     dropout: 0.0
     layers: 3
-
-
 env:
   sim_rate: 1.0
   max_step_duration: &max_step_duration 200.0

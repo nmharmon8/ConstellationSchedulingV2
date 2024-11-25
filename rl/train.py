@@ -10,13 +10,10 @@ from rl.config import parse_args, load_config
 
 from ray import air, tune
 
-# from torch.utils.tensorboard import SummaryWriter
-
 args = parse_args()
 name = args.name
 config = load_config(args.config)
 log_dir = f"/data/nm/{name}"
-# writer = SummaryWriter(log_dir)
 
 # Determine if GPU should be used
 use_gpu = config['use_gpu']
@@ -67,15 +64,6 @@ checkpoint_config = CheckpointConfig(
     checkpoint_frequency=10,
 )
 
-# # Create tuner based on resume configuration
-# if config.get('resume_training', False) and config.get('checkpoint_path'):
-#     # Resume training from checkpoint
-#     tuner = tune.Tuner.restore(
-#         path=config['checkpoint_path'],
-#         trainable="PPO",
-#         param_space=ppo_config,
-#     )
-# else:
 # Start new training run
 tuner = tune.Tuner(
     "PPO",
@@ -90,39 +78,6 @@ tuner = tune.Tuner(
 
 # Run the training
 results = tuner.fit()
-
-# algo = ppo_config.build()
-
-# if config['resume']:
-#     print(f"Restoring from {config['checkpoint_path']}")
-#     algo.restore(config['checkpoint_path'])
-
-# for i in range(config['training']['steps']):
-#     results = algo.train()
-#     print(f"Step {i}: {results}")
-
-#     # Log metrics to tensorboard
-#     # Training metrics
-#     writer.add_scalar('Training/Total_Loss', results['info']['learner']['default_policy']['learner_stats']['total_loss'], i)
-#     writer.add_scalar('Training/Policy_Loss', results['info']['learner']['default_policy']['learner_stats']['policy_loss'], i)
-#     writer.add_scalar('Training/Value_Function_Loss', results['info']['learner']['default_policy']['learner_stats']['vf_loss'], i)
-#     writer.add_scalar('Training/KL_Divergence', results['info']['learner']['default_policy']['learner_stats']['kl'], i)
-#     writer.add_scalar('Training/Entropy', results['info']['learner']['default_policy']['learner_stats']['entropy'], i)
-    
-#     # Reward metrics
-#     writer.add_scalar('Rewards/Mean', results['env_runners']['episode_reward_mean'], i)
-#     writer.add_scalar('Rewards/Max', results['env_runners']['episode_reward_max'], i)
-#     writer.add_scalar('Rewards/Min', results['env_runners']['episode_reward_min'], i)
-    
-#     # Episode length
-#     writer.add_scalar('Episodes/Mean_Length', results['env_runners']['episode_len_mean'], i)
-
-#     # Save checkpoint
-#     if i % 100 == 0:
-#         algo.save(f"{log_dir}/checkpoint_{i}")
-
-# writer.close()
-
 """
-python -m rl.train --config=rl/configs/train_config.yaml --name=v154_geo
+python -m rl.train --config=rl/configs/train_config.yaml --name=v174_geo
 """

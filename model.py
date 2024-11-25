@@ -41,10 +41,10 @@ class SimpleModel(TorchModelV2, nn.Module):
             nn.ReLU(),
         )
 
-        self.planning = nn.ModuleDict(dict(
-            h = nn.ModuleList([Block(512, 8, False, causal=False, time_emd=False, dropout=0.0) for _ in range(3)]),
-            ln_f = LayerNorm(512, bias=False)
-        ))
+        # self.planning = nn.ModuleDict(dict(
+        #     h = nn.ModuleList([Block(512, 8, False, causal=False, time_emd=False, dropout=0.0) for _ in range(3)]),
+        #     ln_f = LayerNorm(512, bias=False)
+        # ))
 
         self.dropout = nn.Dropout(0.5)
 
@@ -71,9 +71,9 @@ class SimpleModel(TorchModelV2, nn.Module):
         tasks = self.task_encoder(obs)
         observations = self.observation_encoder(tasks.reshape(b, n_sats, -1))
 
-        for block in self.planning.h:
-            observations = block(observations)
-        observations = self.planning.ln_f(observations)
+        # for block in self.planning.h:
+        #     observations = block(observations)
+        # observations = self.planning.ln_f(observations)
 
         self._features = observations.clone()
         actions = self.action_branch(observations)
