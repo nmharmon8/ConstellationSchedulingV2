@@ -21,6 +21,7 @@ export const AgentProvider = ({ children }) => {
   const [interpolatedPositions, setInterpolatedPositions] = useState({});
   const [currentActionsAndObs, setCurrentActionsAndObs] = useState(null);
   const [cumulativeReward, setCumulativeReward] = useState(0);
+  const [stepReward, setStepReward] = useState(0);
   const [completedTasks, setCompletedTasks] = useState([]);
   const [taskGPTMessages, setTaskGPTMessages] = useState([]);
   const [isTaskGPTModalOpen, setIsTaskGPTModalOpen] = useState(false);
@@ -93,7 +94,8 @@ export const AgentProvider = ({ children }) => {
       setTasks(data.tasks);
       setCompletedTasks(data.completed_tasks);
       setCurrentActionsAndObs(data.current_acts_obs);
-
+      setStepReward(data.reward);
+      setCumulativeReward(prev => prev + data.reward);
       const newCurrentTasksBeingExecuted = {};
       Object.entries(data.current_acts_obs.sat_to_act).forEach(([satId, taskIndex]) => {
         newCurrentTasksBeingExecuted[satId] = data.current_acts_obs.sat_to_tasks[satId][taskIndex];
@@ -370,6 +372,7 @@ export const AgentProvider = ({ children }) => {
     setIsTaskGPTModalOpen,
     isTaskGPTProcessing,
     completedTasks,
+    stepReward,
   };
 
   return (

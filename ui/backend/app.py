@@ -36,10 +36,9 @@ def convert_numpy_types(obj):
         return obj
 
 class App:
-    def __init__(self, config, model_name):
+    def __init__(self, config):
         self.config = config
-        self.model_name = model_name
-        self.agent = Agent(config, model_name, greedy=False)
+        self.agent = Agent(config, greedy=False)
         self.app = Flask(__name__)
         
         # Add CORS headers to all responses
@@ -85,7 +84,8 @@ class App:
             'current_sat_state': convert_numpy_types(step_info.get_current_sat_state()),
             'current_acts_obs': convert_numpy_types(step_info.get_current_actions_and_observations()),
             'tasks': convert_numpy_types(self.agent.get_task_info()),
-            'completed_tasks': convert_numpy_types(self.agent.get_completed_tasks())
+            'completed_tasks': convert_numpy_types(self.agent.get_completed_tasks()),
+            'reward': step_info.get_reward(),
         }
     
     def create_new_task(self, name, lat, lon, priority, task_type, min_elev, duration):
@@ -173,7 +173,8 @@ class App:
                 'current_sat_state': convert_numpy_types(current_sat_state),
                 'current_acts_obs': convert_numpy_types(current_acts_obs),
                 'tasks': convert_numpy_types(task_info),
-                'completed_tasks': convert_numpy_types(self.agent.get_completed_tasks())
+                'completed_tasks': convert_numpy_types(self.agent.get_completed_tasks()),
+                'reward': 0
             }
             
             self.socketio.emit('step_update', convert_numpy_types(initial_state)) 
@@ -371,15 +372,13 @@ def parse_args():
     )
     parser.add_argument('--config', type=str, required=True,
                         help='the configuration file')
-    parser.add_argument('--model', type=str, default="v9",
-                        help='the model to load')
     args = parser.parse_args()
     return args
 
 if __name__ == '__main__':
     args = parse_args()
     config = load_config(args.config)
-    app_instance = App(config, args.model)
+    app_instance = App(config)
     app_instance.run(debug=True)
 
     
@@ -388,5 +387,5 @@ if __name__ == '__main__':
 
 """
 export PYTHONPATH=$PYTHONPATH:../../
-python app.py --config ../../rl/configs/basic_config.yaml --model v59_full_fsw
+python app.py --config ../../rl/configs/basic_config.yaml
 """

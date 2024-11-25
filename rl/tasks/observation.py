@@ -70,7 +70,7 @@ class Observation:
     def get_normalized_observation(self):
         obs = self.observation
         obs_norm_terms = self.config['observation_normalization_terms']
-        normalized_obs = {k:obs[k] / obs_norm_terms[k] for k in self.config['observation_keys']}
+        normalized_obs = {k:float(obs[k] / obs_norm_terms[k]) for k in self.config['observation_keys']}
         for k, v in normalized_obs.items():
             if np.abs(v) > 1:
                 print(f"Observation out of bounds: {k} - {v}")
@@ -79,7 +79,7 @@ class Observation:
         return normalized_obs
     
     def get_normalized_observation_numpy(self):
-        obs = self.get_normalized_observation()
+        obs = self.get_normalized_observation()       
         return np.array([obs[k] for k in self.config['observation_keys']])
     
     def __str__(self):

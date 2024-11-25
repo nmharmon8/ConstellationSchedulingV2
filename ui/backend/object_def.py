@@ -211,3 +211,6 @@ class StepInfo:
             "sat_to_act": {sat_id: act for sat_id, act in zip(self.sat_ids, self.actions)},
             "sat_to_tasks": {sat_id: v.get_task_json() for sat_id, v in self.init_observation.items()}
         }
+    
+    def get_reward(self):
+        return self.reward

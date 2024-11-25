@@ -1,6 +1,6 @@
 from time import time_ns
 import time
-
+import torch
 import numpy as np
 import random
 from gymnasium import Env, spaces
@@ -13,6 +13,7 @@ def set_seeds(seed):
     np_random.seed(seed)
     import random
     random.seed(seed)
+    torch.manual_seed(seed)
 
 
 from bsk_rl.utils.orbital import random_epoch
@@ -36,6 +37,9 @@ class SatelliteTasking(Env):
             self.vector_env_index = 0
 
         self.seed = self.worker_idx + self.vector_env_index * self.num_workers
+
+        print(f"Seed: {self.seed}")
+
         set_seeds(self.seed)
 
         self.config = config
@@ -54,6 +58,7 @@ class SatelliteTasking(Env):
 
     def step(self, actions):
         next_obs, reward, info = self.simulator.step(actions)
+        print(f"reward: {reward} for actions: {actions}")
         return next_obs, reward, self.simulator.done, not self.simulator.is_alive(), info
 
     def render(self) -> None:  # pragma: no cover
@@ -99,6 +104,8 @@ def main(config):
         # if step >= 10:
         #     break
 
+        print(f"Step {step} reward: {reward}")
+
     # profiler.disable()
 
     # # Create a stream to hold the profiling results
@@ -109,9 +116,6 @@ def main(config):
 
     # # Print the profiling results
     # print(s.getvalue())
-
-        # # Wait on input to continue
-        # input("Press Enter to continue...")
             
 
 

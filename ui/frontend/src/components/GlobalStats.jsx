@@ -3,24 +3,8 @@ import { useAgent } from '../store/AgentStore';
 import { Box, Typography } from '@mui/material';
 
 const GlobalStats = () => {
-  const { currentActionsAndObs, cumulativeReward, setCumulativeReward } = useAgent();
-  const [currentReward, setCurrentReward] = useState(0);
+  const {stepReward, cumulativeReward } = useAgent();
 
-  useEffect(() => {
-    if (!currentActionsAndObs?.sat_to_tasks) return;
-
-    // Calculate current reward from all active tasks
-    const newCurrentReward = Object.entries(currentActionsAndObs.sat_to_tasks).reduce((total, [satId, tasks]) => {
-      const activeTaskIndex = currentActionsAndObs.sat_to_act[satId];
-      if (activeTaskIndex !== undefined && tasks[activeTaskIndex]) {
-        return total + (tasks[activeTaskIndex].reward || 0);
-      }
-      return total;
-    }, 0);
-
-    setCurrentReward(newCurrentReward);
-    setCumulativeReward(prev => prev + newCurrentReward);
-  }, [currentActionsAndObs, setCumulativeReward]);
 
   return (
     <Box
@@ -38,7 +22,7 @@ const GlobalStats = () => {
           Current Reward:
         </Typography>
         <Typography sx={{ color: '#00FFD1', fontFamily: 'monospace', fontSize: '1.1em' }}>
-          {currentReward.toFixed(3)}
+          {stepReward.toFixed(3)}
         </Typography>
       </Box>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

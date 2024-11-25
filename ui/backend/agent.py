@@ -41,6 +41,7 @@ class SatelliteGuard:
         sats = sim.satellites
         for i, (sat, action) in enumerate(zip(sats, actions)):
             observations = sim.task_manager.get_observations(sat, sim.sim_time)
+            print(f"Sat {sat.name} should charge: {sat.should_charge()} should desat: {sat.should_desat()} should downlink: {sat.should_downlink()}")
             if sat.should_charge():
                 actions[i] = 0
             elif sat.should_desat():
@@ -60,21 +61,24 @@ class SatelliteGuard:
                 else:
                     task, window_offset = observations.action_to_task(action)
                     if window_offset == 0:
+                        print(f"Sat {sat.name} is taking default action {action}")
                         actions[i] = action
                     else:
+                        print(f"Sat {sat.name} is taking action {action} because it's not the first collect task")
                         task, offset, idx = observations.get_first_collect_task()
                         if task is not None and offset == 0:
+                            print(f"Sat {sat.name} is taking action {idx} because it's the first collect task")
                             actions[i] = idx
                         else:
+                            print(f"Sat {sat.name} is taking action {len(observations) - 1} because it's not the first collect task")
                             actions[i] = len(observations) - 1
         return actions
 
 class Agent:
 
-    def __init__(self, config, model_name, greedy=False):
+    def __init__(self, config, greedy=False):
 
         self.config = config
-        self.model_name = model_name
         self.greedy = greedy
 
         self.info = {}
@@ -103,7 +107,6 @@ class Agent:
         ppo_config.model.update(
             {
                 "custom_model": "simple_model",
-                "custom_action_dist": "message_dist",
                 "custom_model_config":config['model']
             }
         )
@@ -119,9 +122,9 @@ class Agent:
             latest_checkpoint = max(checkpoints, key=lambda x: int(x.split("_")[-1]))
             return latest_checkpoint
 
-        checkpoint = find_latest_checkpoint(f"/data/nm/{model_name}/")
-        print(f"Restoring from {checkpoint}")
-        self.algo.restore(checkpoint)
+        # checkpoint = find_latest_checkpoint(f"/data/nm/{model_name}/")
+        # print(f"Restoring from {checkpoint}")
+        self.algo.restore("/data/nm/v154_geo/checkpoint_400/")
 
         config['env']['time_limit'] = 1000000
         config['env']['min_tasks'] = 500
@@ -177,9 +180,6 @@ class Agent:
         self.env.simulator.task_manager.insert_new_task(task)
 
 
-
-
-
     def take_step(self):
 
         if self.greedy:
@@ -188,7 +188,9 @@ class Agent:
             print("Computing action without exploration")
             action = self.algo.compute_single_action(self.obs, explore=False)
 
-        action = self.guard.guard_actions(action)
+        # action = [3] * len(self.env.simulator.satellites)
+
+        # action = self.guard.guard_actions(action)
 
         next_obs, reward, done, truncated, info = self.env.step(action)
 

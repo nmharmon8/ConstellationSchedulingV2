@@ -1,14 +1,14 @@
 
 services:
-  ray-app:
+  constsched:
     build:
       context: .
       dockerfile: Dockerfile.ray
     shm_size: '10.24gb' 
     network_mode: host
     volumes:
-      - ../:/app
-    working_dir: /app
+      - ../:/ConstSched
+    working_dir: /ConstSched
     deploy:
       resources:
         reservations:

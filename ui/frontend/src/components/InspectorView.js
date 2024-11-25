@@ -110,7 +110,11 @@ const InspectorView = () => {
                         <Box key={key} className="detail-item">
                           <Typography className="detail-key">{key}:</Typography>
                           <Typography className="detail-value">
-                            {typeof value === 'number' ? value.toFixed(4) : value.toString()}
+                            {value !== null && value !== undefined
+                              ? typeof value === 'number'
+                                ? value.toFixed(4)
+                                : value.toString()
+                              : 'N/A'}
                           </Typography>
                         </Box>
                       ))}

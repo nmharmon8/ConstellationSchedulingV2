@@ -143,9 +143,6 @@ class Satellite:
         self.action = Actions.DRIFT
         self.last_action_reward = 0
 
-        self.current_time = 0
-        self.sat_observation_cache = {}
-
     
     def get_power_change(self, task):
         """
@@ -279,7 +276,6 @@ class Satellite:
         """
         Called before running the simulation step
         """
-        self.current_time = start_time
         # self.print_stat_stats(info=f"    Pre-task stats {task.get_task_type_str()}\n")
         self.sat_task = SatelliteTask(task, self)
         task.collect(self, start_time, end_time)
@@ -289,7 +285,6 @@ class Satellite:
         """
         Called after running the simulation step
         """
-        self.current_time = end_time
         self.sat_task.task_complete(self.action)
         task.complete(self, end_time)
         self.last_action_reward = task.get_reward()
@@ -344,9 +339,7 @@ class Satellite:
         }
     
     def get_observation(self):
-        if self.current_time not in self.sat_observation_cache:
-            self.sat_observation_cache = {}
-            self.sat_observation_cache[self.current_time] = {   
+        return {   
                 'is_alive': self.is_alive(),
                 'storage_level': self.dynamics.storage_level,
                 'storage_capacity': self.dynamics.storageUnit.storageCapacity,
@@ -367,7 +360,6 @@ class Satellite:
                 'should_downlink': self.should_downlink(),
                 'should_desat': self.should_desat(),
             }
-        return self.sat_observation_cache[self.current_time]
 
 
 from bsk_rl.utils.attitude import random_tumble

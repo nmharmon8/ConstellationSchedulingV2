@@ -101,6 +101,10 @@ class Task:
 
     def task_info(self):
         info = {
+            'task_lat_sin': np.sin(0),
+            'task_lat_cos': np.cos(0),
+            'task_lon_sin': np.sin(0),
+            'task_lon_cos': np.cos(0),
             'id': self.id,
             'task_type_str': TaskType.to_str(self.task_type),
             'task_type': self.task_type,
@@ -208,6 +212,10 @@ class PositionTask(Task):
             'longitude': self.longitude,
             'altitude': self.altitude,
             'min_elev': self.min_elev,
+            'task_lat_sin': np.sin(self.lat),
+            'task_lat_cos': np.cos(self.lat),
+            'task_lon_sin': np.sin(self.lon),
+            'task_lon_cos': np.cos(self.lon),
         })
         return info
 
@@ -239,12 +247,7 @@ class CollectTask(PositionTask):
         x = np.random.normal(size=3)
         x *= radius / np.linalg.norm(x)
         
-        # Simultaneous Collects Required
-        if np.random.rand() < 0.5:
-            simultaneous_collects_required = 1
-        else:
-            # Don't create as many tasks that require coordination as this makes training harder
-            simultaneous_collects_required = np.random.randint(1, config['max_sat_coordination'] + 1)
+        simultaneous_collects_required = np.random.randint(1, config['max_sat_coordination'] + 1)
         
         # Priority
         priority = np.random.rand()
@@ -322,7 +325,7 @@ class CollectTask(PositionTask):
         return False
     
     def get_reward(self):
-        reward = -0.001
+        reward = 0.0
         if self.is_collection_valid():
             reward = self.priority
         return reward
@@ -366,8 +369,9 @@ class DownlinkTask(PositionTask):
     
     def get_reward(self):
         n_valid_collections = self.count_valid_collections()
-        reward = self.priority * n_valid_collections
-        reward -= 0.1 * (len(self.sats_collecting) - n_valid_collections)           
+        # reward = self.priority * n_valid_collections
+        # reward -= 0.1 * (len(self.sats_collecting) - n_valid_collections)   
+        reward = 0        
         return reward
 
     def step(self):

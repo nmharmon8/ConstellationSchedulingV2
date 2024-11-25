@@ -16,7 +16,7 @@ training_args:
   lr: 0.00003
   gamma: 0.98
   train_batch_size: 300
-  sgd_minibatch_size: 64 # Default is 128
+  minibatch_size: 64 # Default is 128
   num_sgd_iter: 16 # Default is 30
   lambda_: 0.95
   kl_target: 0.01

@@ -31,21 +31,6 @@ class SimpleModel(TorchModelV2, nn.Module):
 
         config =  model_config['custom_model_config']
 
-        # # First do attention over each satellites observations
-        # self.obs_featuer_proj = nn.Linear(self.observation_features, config['feature_model']['n_embd'], bias=config['feature_model']['bias'])
-        # self.obs_feature_encoder = nn.ModuleDict(dict(
-        #     h = nn.ModuleList([Block(config['feature_model']['n_embd'], config['feature_model']['n_head'], config['feature_model']['bias'], causal=False, time_emd=False, dropout=config['feature_model']['dropout']) for _ in range(config['feature_model']['layers'])]),
-        #     ln_f = LayerNorm(config['feature_model']['n_embd'], bias=config['feature_model']['bias'])
-        # ))
-
-
-        # # Then do attention over the concatenated observations, e.g satellite level features
-        # self.obs_sat_proj = nn.Linear(config['feature_model']['n_embd'] * self.n_access_windows, config['satellite_model']['n_embd'], bias=config['satellite_model']['bias'])
-        # self.obs_sat_encoder = nn.ModuleDict(dict(
-        #     h = nn.ModuleList([Block(config['satellite_model']['n_embd'], config['satellite_model']['n_head'], config['satellite_model']['bias'], causal=False, time_emd=False, dropout=config['satellite_model']['dropout']) for _ in range(config['satellite_model']['layers'])]),
-        #     ln_f = LayerNorm(config['satellite_model']['n_embd'], bias=config['satellite_model']['bias'])
-        # ))
-
         self.task_encoder = nn.Sequential(
             nn.Linear(self.observation_features, 128),
             nn.ReLU(),
@@ -60,10 +45,6 @@ class SimpleModel(TorchModelV2, nn.Module):
             h = nn.ModuleList([Block(512, 8, False, causal=False, time_emd=False, dropout=0.0) for _ in range(3)]),
             ln_f = LayerNorm(512, bias=False)
         ))
-        # self.planning = nn.Sequential(
-        #     nn.Linear(512 * self.n_sats, 1024),
-        #     nn.ReLU(),
-        # )
 
         self.dropout = nn.Dropout(0.5)
 
@@ -73,6 +54,16 @@ class SimpleModel(TorchModelV2, nn.Module):
 
         self._features = None
 
+
+        # if config['resume_args']['resume']:
+        #     # Load state dict instead of full model
+        #     checkpoint = torch.load(config['resume_args']['checkpoint_path'], map_location=torch.device('cpu'))
+        #     # If checkpoint contains full model, get its state dict
+        #     if isinstance(checkpoint, SimpleModel):
+        #         checkpoint = checkpoint.state_dict()
+        #     # Load the state dict into current model
+        #     self.load_state_dict(checkpoint)
+
     def forward(self, input_dict, state, seq_lens):
         obs = input_dict['obs'].float() # (batch, n_sats, access_windows, observation_features)
         b, n_sats, n_access_windows, n_features = obs.shape
@@ -80,18 +71,13 @@ class SimpleModel(TorchModelV2, nn.Module):
         tasks = self.task_encoder(obs)
         observations = self.observation_encoder(tasks.reshape(b, n_sats, -1))
 
-        print(f"Observations shape: {observations.shape}")
-
         for block in self.planning.h:
             observations = block(observations)
         observations = self.planning.ln_f(observations)
-        print(f"Observations shape: {observations.shape}")
-        # observations = self.planning(observations.reshape(b, -1))
 
         self._features = observations.clone()
         actions = self.action_branch(observations)
-        print(f"Actions shape: {actions.shape}")
-        # actions = actions.reshape(b, -1)
+        actions = actions.reshape(b, -1)
         return actions, []
     
     
