@@ -4,8 +4,9 @@ use_gpu: true
 
 
 
-checkpoint_path: "../../v177_geo/"
+# checkpoint_path: "../../v177_geo/"
 # checkpoint_path: "/data/nm/v177_geo/"
+checkpoint_path: "./v180_geo/"
 
 env_runners:
   sample_timeout_s: 1000000.0

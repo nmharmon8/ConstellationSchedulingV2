@@ -90,9 +90,9 @@ def main(config):
 
     step = 0
 
-    # # Initialize the profiler
-    # profiler = cProfile.Profile()
-    # profiler.enable()
+    # Initialize the profiler
+    profiler = cProfile.Profile()
+    profiler.enable()
 
     while True:  # not done and not terminated:
         action = [step % 4] * config['env']['n_sats']
@@ -100,22 +100,22 @@ def main(config):
         total_reward += reward
         step += 1
 
-        # # Optional: Add a condition to break the loop after a certain number of steps
-        # if step >= 10:
-        #     break
+        # Optional: Add a condition to break the loop after a certain number of steps
+        if step >= 10:
+            break
 
         print(f"Step {step} reward: {reward}")
 
-    # profiler.disable()
+    profiler.disable()
 
-    # # Create a stream to hold the profiling results
-    # s = io.StringIO()
-    # sortby = 'cumulative'
-    # ps = pstats.Stats(profiler, stream=s).sort_stats(sortby)
-    # ps.print_stats()
+    # Create a stream to hold the profiling results
+    s = io.StringIO()
+    sortby = 'cumulative'
+    ps = pstats.Stats(profiler, stream=s).sort_stats(sortby)
+    ps.print_stats()
 
-    # # Print the profiling results
-    # print(s.getvalue())
+    # Print the profiling results
+    print(s.getvalue())
             
 
 
@@ -129,5 +129,5 @@ if __name__ == "__main__":
     main(config)
 
 """
-python -m rl.gym --config rl/configs/basic_config.yaml
+python -m rl.gym --config rl/configs/train_config.yaml
 """

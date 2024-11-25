@@ -18,4 +18,4 @@ RUN pip install flask flask-socketio flask-cors eventlet requests tqdm
 WORKDIR /ConstSched
 
 # Command to run the Flask application
-# CMD ["python", "ui/backend/app.py", "--config", "rl/configs/backend_config.yaml"] 
+CMD ["python", "ui/backend/app.py", "--config", "rl/configs/backend_config.yaml"] 

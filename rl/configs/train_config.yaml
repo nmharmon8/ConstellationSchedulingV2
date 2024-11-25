@@ -6,8 +6,12 @@ checkpoint_path: "/data/nm/v153_geo/checkpoint_300/"  # Set this to the checkpoi
 
 env_runners:
   sample_timeout_s: 1000000.0
-  num_env_runners: 47
+  num_env_runners: 24
   num_cpus_per_env_runner: 1
+
+resources:
+  num_gpus: 1
+  num_gpus_per_worker: 0.08
 
 training:
   steps: 100000
@@ -15,9 +19,9 @@ training:
 training_args:
   lr: 0.00003
   gamma: 0.98
-  train_batch_size: 360
+  train_batch_size: 256
   minibatch_size: 16 # Default is 128
-  num_sgd_iter: 24 # Default is 30
+  num_sgd_iter: 16 # Default is 30
   lambda_: 0.95
   kl_target: 0.01
   kl_coeff: 0.2
@@ -62,7 +66,7 @@ model:
 env:
   sim_rate: 1.0
   max_step_duration: &max_step_duration 200.0
-  time_limit: 3000 # 15 steps #21400 #11400 # about 2 orbits
+  time_limit: 2200 # 11 steps # 21400 #11400 # about 2 orbits
   n_access_windows: &n_access_windows 20
   n_sats: 10
 

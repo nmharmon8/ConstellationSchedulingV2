@@ -37,7 +37,7 @@ services:
           devices:
             - capabilities: [gpu]
     runtime: nvidia
-    command: tail -f /dev/null 
+    # command: tail -f /dev/null 
 
   ui:
     build:

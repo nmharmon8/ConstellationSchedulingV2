@@ -92,6 +92,22 @@ class Observation:
     def get_info(self):
         return self.observation
 
+    def nn_sortorder(self):
+        """
+        Returns a tuple used for sorting observations where:
+        1. Downlinks and collection tasks are intermixed based on window_index_offset (earliest first)
+        2. Charge, Desat, and Noop tasks are always last in that order
+        """
+        if self.task.is_noop:
+            return (1, 3, 0)  # Last priority, window offset doesn't matter
+        elif self.task.is_charge:
+            return (1, 1, 0)  # Second to last priority group
+        elif self.task.is_desat:
+            return (1, 2, 0)  # Third to last priority group
+        else:
+            # All regular tasks (downlinks and collections) sorted by window offset
+            return (0, 0, self.get_window_offset())
+
 class Observations:
 
     def __init__(self, current_time, upcoming_tasks, satellite, config):
@@ -113,6 +129,13 @@ class Observations:
         observations = sorted(observations)
         # The last task is guaranteed to be a noop task and we want to insure a noop task is always available
         observations = observations[:self.n_access_windows-1] + observations[-1:]
+
+        observations.sort(key=lambda x: x.nn_sortorder())
+
+        # print("Observations sorted by nn_sortorder:")
+        # for obs in observations:
+        #     print(f"Task type: {obs.observation['task_type_str']} -- Window offset: {obs.get_window_offset()}")
+
         return observations
     
     def action_to_task(self, action_idx):

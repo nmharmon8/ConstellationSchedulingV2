@@ -7,8 +7,10 @@ from ray.rllib.algorithms.ppo import PPOConfig
 import ray
 
 from rl.config import parse_args, load_config
+from rl.custom_exploration import CustomActionExploration
 
 from ray import air, tune
+
 
 args = parse_args()
 name = args.name
@@ -41,12 +43,22 @@ ppo_config = (
     )
     .framework("torch")
     .checkpointing(export_native_model_files=True)
-    .resources(num_gpus=num_gpus) 
+    .resources(
+        num_gpus=1,
+        num_gpus_per_worker=0.01
+    )
+    # .exploration(
+    #     exploration_config={
+    #         "type": CustomActionExploration,
+    #         "framework": "torch",
+    #     }
+    # )
 )
 
 ppo_config.model.update(
     {
         "custom_model": "simple_model",
+        # "custom_action_dist": "message_dist",
         "custom_model_config": config['model'],
     }
 )
