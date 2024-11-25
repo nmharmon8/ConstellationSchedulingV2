@@ -65,26 +65,13 @@ const ObservationState = () => {
             const tasks = currentActionsAndObs.sat_to_tasks[satId] || [];
             const activeTaskIndex = currentActionsAndObs.sat_to_act[satId];
 
-            // Annotate each task with its original index
-            const annotatedTasks = tasks.map((task, index) => ({
-              ...task,
-              originalIndex: index
-            }));
-            
-            // Separate COLLECTION tasks
-            const collectionTasks = annotatedTasks.filter(task => task.is_collection);
-            const otherTasks = annotatedTasks.filter(task => !task.is_collection);
-
-            // Reorder tasks: COLLECTION first, then others
-            const reorderedTasks = [...collectionTasks, ...otherTasks];
-
             return (
               <tr key={satId}>
                 <td className="sat-id">
                   {satId.split('_')[0]}
                 </td>
                 {[...Array(maxTasks)].map((_, index) => {
-                  const task = reorderedTasks[index];
+                  const task = tasks[index];
                   if (!task) {
                     return (
                       <td
@@ -97,7 +84,7 @@ const ObservationState = () => {
                     );
                   }
 
-                  const isActive = task.originalIndex === activeTaskIndex;
+                  const isActive = index === activeTaskIndex;
 
                   return (
                     <td

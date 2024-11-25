@@ -189,8 +189,9 @@
 
 .planning-line-active {
   opacity: 1.0;
-  stroke-width: 2;
+  stroke-width: 6.5;
   stroke-dasharray: 4, 4;
+  filter: drop-shadow(0 0 3px rgba(76, 175, 80, 0.7));
 }
 
 .legend-markers {

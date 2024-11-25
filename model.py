@@ -18,12 +18,8 @@ class SimpleModel(TorchModelV2, nn.Module):
         )
         nn.Module.__init__(self)
 
-        # self.n_actions = 11
-        print(f"Action space: {action_space}")
         self.n_actions = action_space.spaces[0].n
-        print(f"Number of actions: {self.n_actions}")
 
-        
         self.n_sats  = obs_space.shape[0]
         self.n_access_windows = obs_space.shape[1]
         self.observation_features = obs_space.shape[2]
@@ -36,44 +32,40 @@ class SimpleModel(TorchModelV2, nn.Module):
             nn.ReLU(),
         )
 
+        self.planning = nn.ModuleDict(dict(
+            h = nn.ModuleList([Block(128, 2, False, causal=False, time_emd=False, dropout=0.0) for _ in range(3)]),
+            ln_f = LayerNorm(128, bias=False)
+        ))
+
         self.observation_encoder = nn.Sequential(
-            nn.Linear(128 * self.n_access_windows, 512),
+            nn.Linear(256 * self.n_access_windows, 512),
             nn.ReLU(),
         )
 
-        # self.planning = nn.ModuleDict(dict(
-        #     h = nn.ModuleList([Block(512, 8, False, causal=False, time_emd=False, dropout=0.0) for _ in range(3)]),
-        #     ln_f = LayerNorm(512, bias=False)
-        # ))
 
-        self.dropout = nn.Dropout(0.5)
 
         self.action_branch = nn.Linear(512, self.n_actions, bias=True)
-        self.value_branch = nn.Linear(512 * self.n_sats, 1, bias=True)
+        self.value_branch = nn.Linear(512, 1, bias=True)
     
-
         self._features = None
 
-
-        # if config['resume_args']['resume']:
-        #     # Load state dict instead of full model
-        #     checkpoint = torch.load(config['resume_args']['checkpoint_path'], map_location=torch.device('cpu'))
-        #     # If checkpoint contains full model, get its state dict
-        #     if isinstance(checkpoint, SimpleModel):
-        #         checkpoint = checkpoint.state_dict()
-        #     # Load the state dict into current model
-        #     self.load_state_dict(checkpoint)
-
     def forward(self, input_dict, state, seq_lens):
-        obs = input_dict['obs'].float() # (batch, n_sats, access_windows, observation_features)
+        obs = input_dict['obs'].float()
         b, n_sats, n_access_windows, n_features = obs.shape
 
         tasks = self.task_encoder(obs)
-        observations = self.observation_encoder(tasks.reshape(b, n_sats, -1))
 
-        # for block in self.planning.h:
-        #     observations = block(observations)
-        # observations = self.planning.ln_f(observations)
+        plans = tasks.reshape(b, n_sats * n_access_windows, -1)
+
+        for block in self.planning.h:
+            plans = block(plans)
+        plans = self.planning.ln_f(plans)
+
+        plans = plans.reshape(b, n_sats, n_access_windows, -1)
+
+        task_plans = torch.cat([plans, tasks], dim=-1)
+
+        observations = self.observation_encoder(task_plans.reshape(b, n_sats, -1))
 
         self._features = observations.clone()
         actions = self.action_branch(observations)
@@ -83,8 +75,8 @@ class SimpleModel(TorchModelV2, nn.Module):
     
     def value_function(self):
         assert self._features is not None, "Must call forward() first"
-        value = self.value_branch(self._features.view(self._features.size(0), -1))
-        return value.squeeze(1)
+        value = torch.mean(self.value_branch(self._features), dim=1).squeeze(1)
+        return value
 
 
 ModelCatalog.register_custom_model("simple_model", SimpleModel)

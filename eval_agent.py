@@ -1,20 +1,13 @@
-import sys
-sys.path.append('../../')
 
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
-import json
-import argparse
-import time
 import torch
 
 from ray.rllib.algorithms.ppo import PPOConfig
 import ray
-from pymap3d import ecef2geodetic
-from rl.config import parse_args, load_config
-from rl.action_def import ActionDef
-from rl.tasks.observation import get_observation_from_numpy
-from object_def import StepInfo
+from rl.config import load_config
+
+
 
 import os
 ray.init(local_mode=True)
@@ -96,13 +89,9 @@ def find_latest_checkpoint(model_dir):
 
 class Agent:
 
-    def __init__(self, config, greedy=False):
+    def __init__(self, config, n_tasks=500, greedy=False, seed=42):
 
-        self.config = config
         self.greedy = greedy
-
-        self.info = {}
-        self.action_def = ActionDef(config['env'])
 
         # Determine if GPU should be used
         use_gpu = config.get('use_gpu', False)
@@ -142,75 +131,83 @@ class Agent:
         checkpoint = os.path.abspath(checkpoint)
         print(f"Restoring from {checkpoint}")
         self.algo.restore(checkpoint)
+
+        config['env']['time_limit'] = 1000000
+        config['env']['min_tasks'] = n_tasks
+        config['env']['max_tasks'] = n_tasks
         
         self.data_per_step = []
+
         self.done = False
         self.truncated = False
         self.step = 0    
 
         self.env = SatelliteTasking(config['env'])
-        self.obs, self.info = self.env.reset(seed=42)
+        self.obs, self.info = self.env.reset(seed=seed)
         self.total_reward = 0
         self.guard = SatelliteGuard(self.env)
 
-    def get_task_info(self):
-        return [task.task_info() for task in self.env.simulator.task_manager.tasks]
-    
-    def get_completed_tasks(self):
-        return [task.task_info() for task in self.env.simulator.task_manager.completed_tasks]
-    
-    def get_sat_info(self):
-        return [sat.get_info() for sat in self.env.simulator.satellites]
+    def eval(self, steps=20):
 
-    def get_info(self):
-        return StepInfo(self.info)
-    
-    def add_new_task(self, name, lat, lon, priority, task_type, min_elev, duration, user_id):
-        from rl.tasks.task import CollectTask
-        from bsk_rl.utils.orbital import lla2ecef
-        import uuid
-        from Basilisk.utilities import orbitalMotion
+        reward_sum = 0
 
-        # Using Earth radius as altitude since we're dealing with ground targets
-        r_LP_P = lla2ecef(lat, lon, orbitalMotion.REQ_EARTH * 1e3)
-        # must convert lat, lon to r_LP_P
+        for _ in range(steps):
 
-        task = CollectTask(
-            name=f"{name}-{uuid.uuid4()}",
-            r_LP_P=r_LP_P,
-            priority=priority,
-            simultaneous_collects_required=1,  # Default to single satellite collection
-            task_duration=duration,
-            task_type=task_type,
-            storage_size=500,  # Default storage size in MB
-            max_step_duration=200,
-            n_access_windows=20,
-            min_elev=min_elev,
-            user_id=user_id
-        )
+            if self.greedy:
+                action = [0] * len(self.env.simulator.satellites)
+                action = self.guard.guard_actions(action)
+            else:
+                print("Computing action without exploration")
+                action = self.algo.compute_single_action(self.obs, explore=False)
+                action = self.guard.guard_actions(action)
 
-        self.env.simulator.task_manager.insert_new_task(task)
+            
 
+            next_obs, reward, done, truncated, info = self.env.step(action)
 
-    def take_step(self):
+            reward_sum += reward
 
-        if self.greedy:
-            action = self.greedy_action(self.obs)
-        else:
-            print("Computing action without exploration")
-            action = self.algo.compute_single_action(self.obs, explore=False)
+        return reward_sum
 
-        action = self.guard.guard_actions(action)
-
-        next_obs, reward, done, truncated, info = self.env.step(action)
-
-        self.obs = next_obs
-        self.info = info
-        self.step += 1
-        return StepInfo(info)
+         
     
     def get_inspector_observation_state(self):
         return {
             'obs': self.obs,
             'debug': self.env.get_debug_observation()
         }
+
+
+if __name__ == "__main__":
+    config = load_config("rl/configs/backend_config.yaml")
+    
+    n_task_tests = [100, 200, 400, 800, 1600]
+    steps = [5, 10, 20]
+    # policy_reward_sums = []
+    # greedy_reward_sums = []
+    results = {
+        'greedy': [],
+        'policy': []
+    }
+
+    for i, n_tasks in enumerate(n_task_tests):
+        for s in steps:
+            agent = Agent(config, n_tasks=n_tasks, seed=i)
+            reward_sum = agent.eval(steps=s)
+            print(f"Test {i} policy steps {s} n_tasks {n_tasks} reward: {reward_sum}")
+            results['policy'].append({'steps': s, 'n_tasks': n_tasks, 'reward': reward_sum})
+            
+
+            agent = Agent(config, n_tasks=n_tasks, greedy=True, seed=i)
+            reward_sum = agent.eval(steps=s)
+            print(f"Test {i} greedy steps {s} n_tasks {n_tasks} reward: {reward_sum}")
+            results['greedy'].append({'steps': s, 'n_tasks': n_tasks, 'reward': reward_sum})
+
+            print(f"Current results: {results}")
+
+    print(f"Final results: {results}")
+
+
+"""
+python eval_agent.py
+"""

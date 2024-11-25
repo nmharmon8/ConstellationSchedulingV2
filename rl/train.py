@@ -2,20 +2,17 @@ import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 import torch
-
 from ray.rllib.algorithms.ppo import PPOConfig
 import ray
+from ray import air, tune
 
 from rl.config import parse_args, load_config
-from rl.custom_exploration import CustomActionExploration
-
-from ray import air, tune
 
 
 args = parse_args()
 name = args.name
 config = load_config(args.config)
-log_dir = f"/data/nm/{name}"
+log_dir = f"{config['log_dir']}/{name}"
 
 # Determine if GPU should be used
 use_gpu = config['use_gpu']
@@ -47,18 +44,11 @@ ppo_config = (
         num_gpus=1,
         num_gpus_per_worker=0.01
     )
-    # .exploration(
-    #     exploration_config={
-    #         "type": CustomActionExploration,
-    #         "framework": "torch",
-    #     }
-    # )
 )
 
 ppo_config.model.update(
     {
         "custom_model": "simple_model",
-        # "custom_action_dist": "message_dist",
         "custom_model_config": config['model'],
     }
 )
@@ -76,17 +66,27 @@ checkpoint_config = CheckpointConfig(
     checkpoint_frequency=10,
 )
 
-# Start new training run
-tuner = tune.Tuner(
-    "PPO",
-    run_config=air.RunConfig(
-        stop=stop, 
-        verbose=1, 
-        checkpoint_config=checkpoint_config, 
-        storage_path=log_dir,
-    ),
-    param_space=ppo_config,
-)
+# Create tuner based on resume configuration
+if config['resume']:
+    print(f"Resuming training from checkpoint: {config['checkpoint_path']}")
+    # Resume training from checkpoint
+    tuner = tune.Tuner.restore(
+        path=config['checkpoint_path'],
+        trainable="PPO",
+        param_space=ppo_config,
+    )
+else:
+    # Start new training run
+    tuner = tune.Tuner(
+        "PPO",
+        run_config=air.RunConfig(
+            stop=stop, 
+            verbose=1, 
+            checkpoint_config=checkpoint_config, 
+            storage_path=log_dir,
+        ),
+        param_space=ppo_config,
+    )
 
 # Run the training
 results = tuner.fit()
